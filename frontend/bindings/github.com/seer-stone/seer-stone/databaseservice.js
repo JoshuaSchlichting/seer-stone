@@ -12,10 +12,33 @@ import * as $models from "./models.js";
 
 /**
  * @param {string} id
+ * @param {string} password
+ * @returns {$CancellablePromise<string[]>}
+ */
+export function Databases(id, password) {
+    return $Call.ByID(3931249150, id, password).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType0($result);
+    }));
+}
+
+/**
+ * @param {string} id
  * @returns {$CancellablePromise<void>}
  */
 export function DeleteProfile(id) {
     return $Call.ByID(4275978240, id);
+}
+
+/**
+ * @param {string} id
+ * @param {string} password
+ * @param {string} database
+ * @returns {$CancellablePromise<$models.DatabaseSchema[]>}
+ */
+export function ExploreSchema(id, password, database) {
+    return $Call.ByID(481232588, id, password, database).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType2($result);
+    }));
 }
 
 /**
@@ -32,19 +55,20 @@ export function LocalPassword(id) {
  */
 export function Profiles() {
     return $Call.ByID(2084908486).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType1($result);
+        return $$createType4($result);
     }));
 }
 
 /**
  * @param {string} id
  * @param {string} password
+ * @param {string} database
  * @param {string} query
  * @returns {$CancellablePromise<$models.QueryResult>}
  */
-export function RunQuery(id, password, query) {
-    return $Call.ByID(3342371831, id, password, query).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType2($result);
+export function RunQuery(id, password, database, query) {
+    return $Call.ByID(3342371831, id, password, database, query).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType5($result);
     }));
 }
 
@@ -54,7 +78,7 @@ export function RunQuery(id, password, query) {
  */
 export function SaveProfile(profile) {
     return $Call.ByID(2940116274, profile).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType0($result);
+        return $$createType3($result);
     }));
 }
 
@@ -68,6 +92,9 @@ export function TestConnection(id, password) {
 }
 
 // Private type creation functions
-const $$createType0 = $models.ConnectionProfile.createFrom;
-const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = $models.QueryResult.createFrom;
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = $models.DatabaseSchema.createFrom;
+const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = $models.ConnectionProfile.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = $models.QueryResult.createFrom;

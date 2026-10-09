@@ -76,6 +76,140 @@ export class ConnectionProfile {
     }
 }
 
+export class DatabaseColumn {
+    /**
+     * Creates a new DatabaseColumn instance.
+     * @param {Partial<DatabaseColumn>} [$$source = {}] - The source object to create the DatabaseColumn.
+     */
+    constructor($$source = {}) {
+        if (!("name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["name"] = "";
+        }
+        if (!("dataType" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["dataType"] = "";
+        }
+        if (!("nullable" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["nullable"] = false;
+        }
+        if (!("default" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["default"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DatabaseColumn instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {DatabaseColumn}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DatabaseColumn(/** @type {Partial<DatabaseColumn>} */($$parsedSource));
+    }
+}
+
+export class DatabaseObject {
+    /**
+     * Creates a new DatabaseObject instance.
+     * @param {Partial<DatabaseObject>} [$$source = {}] - The source object to create the DatabaseObject.
+     */
+    constructor($$source = {}) {
+        if (!("name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["name"] = "";
+        }
+        if (!("kind" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["kind"] = "";
+        }
+        if (!("columns" in $$source)) {
+            /**
+             * @member
+             * @type {DatabaseColumn[]}
+             */
+            this["columns"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DatabaseObject instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {DatabaseObject}
+     */
+    static createFrom($$source = {}) {
+        const $$createField2_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("columns" in $$parsedSource) {
+            $$parsedSource["columns"] = $$createField2_0($$parsedSource["columns"]);
+        }
+        return new DatabaseObject(/** @type {Partial<DatabaseObject>} */($$parsedSource));
+    }
+}
+
+export class DatabaseSchema {
+    /**
+     * Creates a new DatabaseSchema instance.
+     * @param {Partial<DatabaseSchema>} [$$source = {}] - The source object to create the DatabaseSchema.
+     */
+    constructor($$source = {}) {
+        if (!("name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["name"] = "";
+        }
+        if (!("objects" in $$source)) {
+            /**
+             * @member
+             * @type {DatabaseObject[]}
+             */
+            this["objects"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DatabaseSchema instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {DatabaseSchema}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("objects" in $$parsedSource) {
+            $$parsedSource["objects"] = $$createField1_0($$parsedSource["objects"]);
+        }
+        return new DatabaseSchema(/** @type {Partial<DatabaseSchema>} */($$parsedSource));
+    }
+}
+
 export class QueryResult {
     /**
      * Creates a new QueryResult instance.
@@ -127,8 +261,8 @@ export class QueryResult {
      * @returns {QueryResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType0;
-        const $$createField1_0 = $$createType2;
+        const $$createField0_0 = $$createType4;
+        const $$createField1_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("columns" in $$parsedSource) {
             $$parsedSource["columns"] = $$createField0_0($$parsedSource["columns"]);
@@ -141,6 +275,10 @@ export class QueryResult {
 }
 
 // Private type creation functions
-const $$createType0 = $Create.Array($Create.Any);
-const $$createType1 = $Create.Array($Create.Any);
-const $$createType2 = $Create.Array($$createType1);
+const $$createType0 = DatabaseColumn.createFrom;
+const $$createType1 = $Create.Array($$createType0);
+const $$createType2 = DatabaseObject.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = $Create.Array($Create.Any);
+const $$createType5 = $Create.Array($Create.Any);
+const $$createType6 = $Create.Array($$createType5);

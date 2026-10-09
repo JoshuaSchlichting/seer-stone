@@ -4,10 +4,16 @@ const $ = (selector) => document.querySelector(selector);
 const list = $("#connection-list");
 const modal = $("#connection-modal");
 const passwordInput = $("#db-password");
+const databaseSelect = $("#database-select");
 const toast = $("#toast");
 let profiles = [];
 let selectedId = "";
 let connectedId = "";
+let schemaData = [];
+let availableDatabases = [];
+const selectedDatabases = new Map();
+const expandedSchemas = new Set();
+const expandedObjects = new Set();
 const passwords = new Map();
 
 function showToast(message, isError = false) {
@@ -42,6 +48,26 @@ function renderProfiles() {
   if (profile) passwordInput.value = passwords.get(profile.id) || "";
   $("#connect-button").disabled = !profile;
   $("#run-query").disabled = !profile;
+  $("#refresh-schema").disabled = !profile || connectedId !== profile.id;
+  $("#schema-filter").disabled = !profile;
+  databaseSelect.disabled = !profile || connectedId !== profile.id;
+  databaseSelect.replaceChildren();
+  const databases = profile && connectedId === profile.id ? availableDatabases : [];
+  if (databases.length) {
+    for (const name of databases) {
+      const option = document.createElement("option");
+      option.value = name;
+      option.textContent = name;
+      databaseSelect.append(option);
+    }
+    const chosen = selectedDatabases.get(profile.id) || profile.database;
+    databaseSelect.value = databases.includes(chosen) ? chosen : databases[0];
+  } else {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = profile ? "Connect to load databases" : "Select a connection";
+    databaseSelect.append(option);
+  }
   const isConnected = Boolean(profile && connectedId === profile.id);
   $("#connection-state").textContent = isConnected ? "● Connected" : "● Disconnected";
   $("#connection-state").classList.toggle("is-connected", isConnected);
@@ -88,6 +114,170 @@ function renderResult(result) {
   $("#result-meta").textContent = `${result.rowCount} row${result.rowCount === 1 ? "" : "s"} · ${result.durationMs} ms`;
 }
 
+function renderSchemaTree(message = "") {
+  const tree = $("#schema-tree");
+  tree.replaceChildren();
+  const filter = $("#schema-filter").value.trim().toLowerCase();
+  const toggleSchemasButton = $("#toggle-schemas");
+  const allSchemasExpanded = schemaData.length > 0 && schemaData.every((schema) => expandedSchemas.has(schema.name));
+  toggleSchemasButton.disabled = schemaData.length === 0;
+  toggleSchemasButton.textContent = allSchemasExpanded ? "Collapse all" : "Expand all";
+  toggleSchemasButton.title = allSchemasExpanded ? "Collapse all schemas" : "Expand all schemas";
+  if (!schemaData.length) {
+    const empty = document.createElement("div");
+    empty.className = "schema-empty";
+    empty.textContent = message || "No schemas found.";
+    tree.append(empty);
+    return;
+  }
+
+  const databaseRoot = document.createElement("div");
+  databaseRoot.className = "database-root";
+  databaseRoot.innerHTML = '<span class="database-root-icon">▰</span><span class="database-root-name"></span><span class="database-root-caption">DATABASE</span>';
+  databaseRoot.querySelector(".database-root-name").textContent = databaseSelect.value || activeProfile()?.database || "database";
+  tree.append(databaseRoot);
+
+  for (const schema of schemaData) {
+    const objects = schema.objects.filter((object) => {
+      if (!filter) return true;
+      return `${schema.name} ${object.name} ${object.columns.map((column) => column.name).join(" ")}`.toLowerCase().includes(filter);
+    });
+    if (filter && !objects.length && !schema.name.toLowerCase().includes(filter)) continue;
+    const node = document.createElement("div");
+    node.className = "schema-node";
+    const schemaButton = document.createElement("button");
+    schemaButton.className = "schema-node-button";
+    const isOpen = expandedSchemas.has(schema.name) || Boolean(filter);
+    schemaButton.innerHTML = `<span class="schema-chevron">${isOpen ? "▾" : "▸"}</span><span class="schema-icon">▱</span><span class="schema-node-name"></span><span class="schema-count"></span>`;
+    schemaButton.querySelector(".schema-node-name").textContent = schema.name;
+    schemaButton.querySelector(".schema-count").textContent = String(objects.length);
+    schemaButton.addEventListener("click", () => {
+      if (expandedSchemas.has(schema.name)) expandedSchemas.delete(schema.name);
+      else expandedSchemas.add(schema.name);
+      renderSchemaTree();
+    });
+    node.append(schemaButton);
+
+    if (isOpen) {
+      const children = document.createElement("div");
+      children.className = "schema-children";
+      for (const object of objects) {
+        const key = `${schema.name}.${object.name}`;
+        const objectNode = document.createElement("div");
+        const objectOpen = expandedObjects.has(key) || Boolean(filter);
+        const objectRow = document.createElement("div");
+        objectRow.className = "schema-object-row";
+        const objectButton = document.createElement("button");
+        objectButton.className = "schema-object-button";
+        const kindIcon = object.kind.includes("view") ? "◉" : "▦";
+        objectButton.innerHTML = `<span class="object-kind">${kindIcon}</span><span class="object-name"></span>`;
+        objectButton.querySelector(".object-name").textContent = object.name;
+        objectButton.title = `Preview ${object.kind} · ${object.columns.length} columns`;
+        objectButton.addEventListener("click", () => {
+          const query = `SELECT * FROM ${quoteIdentifier(schema.name)}.${quoteIdentifier(object.name)} LIMIT 50;`;
+          $("#sql-editor").value = query;
+          executeQuery(query, `${schema.name}.${object.name}`);
+        });
+        const expandButton = document.createElement("button");
+        expandButton.className = "schema-expand-button";
+        expandButton.type = "button";
+        expandButton.setAttribute("aria-label", `${objectOpen ? "Hide" : "Show"} columns for ${object.name}`);
+        expandButton.textContent = objectOpen ? "▾" : "▸";
+        expandButton.addEventListener("click", () => {
+          if (expandedObjects.has(key)) expandedObjects.delete(key);
+          else expandedObjects.add(key);
+          renderSchemaTree();
+        });
+        objectRow.append(objectButton, expandButton);
+        objectNode.append(objectRow);
+        if (objectOpen) {
+          const columns = document.createElement("div");
+          columns.className = "column-list";
+          const visibleColumns = object.columns.filter((column) => !filter || `${column.name} ${column.dataType}`.toLowerCase().includes(filter));
+          for (const column of visibleColumns) {
+            const item = document.createElement("div");
+            item.className = "column-item";
+            const name = document.createElement("span");
+            name.className = "column-name";
+            name.textContent = column.name;
+            name.title = column.name;
+            const meta = document.createElement("span");
+            meta.className = "column-meta";
+            meta.textContent = `${column.dataType}${column.nullable ? " · nullable" : " · not null"}${column.default ? " · default" : ""}`;
+            meta.title = column.default || "";
+            item.append(name, meta);
+            columns.append(item);
+          }
+          if (!visibleColumns.length) {
+            const noColumns = document.createElement("div");
+            noColumns.className = "schema-empty-filter";
+            noColumns.textContent = "No matching columns";
+            columns.append(noColumns);
+          }
+          objectNode.append(columns);
+        }
+        children.append(objectNode);
+      }
+      node.append(children);
+    }
+    tree.append(node);
+  }
+  if (!tree.children.length) {
+    const empty = document.createElement("div");
+    empty.className = "schema-empty";
+    empty.textContent = "No matching tables or views.";
+    tree.append(empty);
+  }
+}
+
+async function refreshSchema() {
+  const profile = activeProfile();
+  if (!profile) return;
+  const password = passwordInput.value || passwords.get(profile.id) || "";
+  if (!password) {
+    showToast("Enter the database password before exploring schema.", true);
+    passwordInput.focus();
+    return;
+  }
+  const refreshButton = $("#refresh-schema");
+  refreshButton.classList.add("schema-refreshing");
+  $("#schema-tree").innerHTML = '<div class="schema-status">Loading schemas, tables, views, and columns…</div>';
+  try {
+    schemaData = await DatabaseService.ExploreSchema(profile.id, password, databaseSelect.value);
+    expandedSchemas.clear();
+    expandedObjects.clear();
+    for (const schema of schemaData) expandedSchemas.add(schema.name);
+    renderSchemaTree();
+    const objectCount = schemaData.reduce((count, schema) => count + schema.objects.length, 0);
+    showToast(`Schema loaded · ${schemaData.length} schemas, ${objectCount} tables and views`);
+  } catch (error) {
+    schemaData = [];
+    renderSchemaTree(`Schema load failed: ${error}`);
+    showToast(`Could not explore schema: ${error}`, true);
+  } finally {
+    refreshButton.classList.remove("schema-refreshing");
+  }
+}
+
+$("#refresh-schema").addEventListener("click", refreshSchema);
+$("#toggle-schemas").addEventListener("click", () => {
+  if (!schemaData.length) return;
+  const allExpanded = schemaData.every((schema) => expandedSchemas.has(schema.name));
+  expandedSchemas.clear();
+  if (!allExpanded) {
+    for (const schema of schemaData) expandedSchemas.add(schema.name);
+  }
+  $("#schema-filter").value = "";
+  renderSchemaTree();
+});
+databaseSelect.addEventListener("change", () => {
+  const profile = activeProfile();
+  if (!profile) return;
+  selectedDatabases.set(profile.id, databaseSelect.value);
+  refreshSchema();
+});
+$("#schema-filter").addEventListener("input", () => renderSchemaTree());
+
 async function refreshProfiles() {
   try {
     profiles = await DatabaseService.Profiles();
@@ -101,12 +291,29 @@ async function refreshProfiles() {
   }
 }
 
-list.addEventListener("click", (event) => {
-  const item = event.target.closest(".connection-item");
-  if (!item) return;
-  selectedId = item.dataset.id;
+function selectConnection(id) {
+  if (selectedId === id) return;
+  if (selectedId !== id) {
+    schemaData = [];
+    expandedSchemas.clear();
+    expandedObjects.clear();
+    renderSchemaTree("Select Connect to load schema metadata.");
+  }
+  selectedId = id;
   renderProfiles();
   $("#query-message").textContent = "Ready to query";
+}
+
+list.addEventListener("click", (event) => {
+  const item = event.target.closest(".connection-item");
+  if (item) selectConnection(item.dataset.id);
+});
+
+list.addEventListener("dblclick", (event) => {
+  const item = event.target.closest(".connection-item");
+  if (!item) return;
+  selectConnection(item.dataset.id);
+  connectSelected();
 });
 
 $("#add-connection").addEventListener("click", openModal);
@@ -149,7 +356,8 @@ $("#connection-form").addEventListener("submit", async (event) => {
   }
 });
 
-$("#connect-button").addEventListener("click", async () => {
+async function connectSelected() {
+  if (!selectedId) return;
   const password = passwordInput.value;
   if (!password) {
     showToast("Enter the database password first.", true);
@@ -162,23 +370,31 @@ $("#connect-button").addEventListener("click", async () => {
   $("#query-message").textContent = "Connecting…";
   try {
     const serverVersion = await DatabaseService.TestConnection(selectedId, password);
+    const databases = await DatabaseService.Databases(selectedId, password);
     connectedId = selectedId;
+    availableDatabases = databases;
+    const current = selectedDatabases.get(selectedId) || activeProfile()?.database;
+    selectedDatabases.set(selectedId, databases.includes(current) ? current : (databases[0] || activeProfile()?.database || ""));
     renderProfiles();
+    await refreshSchema();
     $("#query-message").textContent = "Connected successfully";
     showToast(`Connected to CockroachDB · ${serverVersion.split(" ").slice(0, 2).join(" ")}`);
   } catch (error) {
     connectedId = "";
+    availableDatabases = [];
     renderProfiles();
     $("#query-message").textContent = "Connection failed";
     showToast(String(error), true);
   } finally {
     button.classList.remove("is-loading");
   }
-});
+}
 
-$("#run-query").addEventListener("click", async () => {
+$("#connect-button").addEventListener("click", connectSelected);
+
+async function executeQuery(query, source = "query") {
   if (!selectedId) return;
-  const password = passwordInput.value;
+  const password = passwordInput.value || passwords.get(selectedId) || "";
   if (!password) {
     showToast("Enter the database password first.", true);
     passwordInput.focus();
@@ -187,20 +403,27 @@ $("#run-query").addEventListener("click", async () => {
   passwords.set(selectedId, password);
   const button = $("#run-query");
   button.classList.add("is-loading");
-  $("#query-message").textContent = "Running query…";
+  $("#query-message").textContent = source === "query" ? "Running query…" : `Loading ${source}…`;
   try {
-    const result = await DatabaseService.RunQuery(selectedId, password, $("#sql-editor").value);
+    const result = await DatabaseService.RunQuery(selectedId, password, databaseSelect.value, query);
     connectedId = selectedId;
     renderResult(result);
     renderProfiles();
-    $("#query-message").textContent = "Query completed";
+    $("#query-message").textContent = source === "query" ? "Query completed" : `Preview: ${source}`;
+    if (source !== "query") $(".results-section").scrollIntoView({ behavior: "smooth", block: "nearest" });
   } catch (error) {
     $("#query-message").textContent = "Query failed";
     showToast(String(error), true);
   } finally {
     button.classList.remove("is-loading");
   }
-});
+}
+
+function quoteIdentifier(identifier) {
+  return `"${identifier.replaceAll('"', '""')}"`;
+}
+
+$("#run-query").addEventListener("click", () => executeQuery($("#sql-editor").value));
 
 $("#sql-editor").addEventListener("keydown", (event) => {
   if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {

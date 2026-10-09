@@ -6,6 +6,7 @@
   <title>Seer Stone — SQL workspace</title>
   <link rel="stylesheet" href="/bulma.min.css">
   <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/schema.css">
 </head>
 <body>
   <div class="app-shell">
@@ -15,6 +16,12 @@
       <div class="connections-heading"><span>CONNECTIONS</span><button id="add-connection" class="icon-button" title="Add connection" aria-label="Add connection">＋</button></div>
       <div id="connection-list" class="connection-list"></div>
       <div id="empty-connections" class="empty-connections">No clusters yet.<br>Connect to your first CockroachDB cluster.</div>
+      <section class="schema-browser">
+        <div class="schema-heading"><span>DATABASE OBJECTS</span><div class="schema-heading-actions"><button id="toggle-schemas" class="schema-toggle-all" type="button" disabled>Collapse all</button><button id="refresh-schema" class="icon-button refresh-button" title="Refresh schema" aria-label="Refresh schema" disabled>↻</button></div></div>
+        <input id="schema-filter" class="input is-small schema-filter" placeholder="Filter tables and views…" aria-label="Filter database objects" disabled>
+        <label class="database-field schema-database-field"><span>DATABASE</span><span class="select is-small"><select id="database-select" disabled aria-label="Select database"><option value="">Connect to load databases</option></select></span></label>
+        <div id="schema-tree" class="schema-tree"><div class="schema-empty">Connect to a database to explore its schema.</div></div>
+      </section>
       <div class="sidebar-bottom"><span class="status-pip"></span><span>Local workspace</span><span class="version">v0.1</span></div>
     </aside>
 
@@ -27,13 +34,11 @@
       <section class="workspace">
         <div class="workspace-title"><div><p class="overline">QUERY EDITOR</p><h1>SQL workspace</h1><p class="subtitle-copy">Write and run SQL against your CockroachDB clusters.</p></div><div class="engine-badge"><span>CR</span> CockroachDB</div></div>
         <div class="session-bar"><div class="session-target"><span class="target-icon">⌖</span><div><small>ACTIVE CONNECTION</small><strong id="target-label">Choose a cluster from the sidebar</strong></div></div><label class="password-field"><span>Password</span><input id="db-password" class="input is-small" type="password" autocomplete="current-password" placeholder="Enter database password" disabled></label></div>
-
         <section class="editor-panel">
           <div class="panel-toolbar"><div class="tab-active"><span class="sql-icon">▤</span> query.sql <i></i></div><div class="editor-tools"><span>SQL</span><span class="tool-divider"></span><span>⌘ ↵ to run</span></div></div>
           <div class="editor-wrap"><div class="line-numbers">1<br>2<br>3<br>4<br>5</div><textarea id="sql-editor" spellcheck="false" aria-label="SQL query editor">SELECT current_database(), now();</textarea></div>
           <div class="editor-footer"><span id="query-message">Ready to query</span><button id="run-query" class="button run-button" disabled><span>▶</span> Run query</button></div>
         </section>
-
         <section class="results-section">
           <div class="results-heading"><div><p class="overline">OUTPUT</p><h2>Results</h2></div><div id="result-meta" class="result-meta">Run a query to see results</div></div>
           <div id="result-state" class="result-placeholder"><div class="result-glyph">⌁</div><strong>Your results will appear here</strong><span>Choose a connection, enter its password, and run a SQL query.</span></div>

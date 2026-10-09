@@ -38,6 +38,24 @@ type QueryResult struct {
 	DurationMs int64    `json:"durationMs"`
 }
 
+type DatabaseSchema struct {
+	Name    string           `json:"name"`
+	Objects []DatabaseObject `json:"objects"`
+}
+
+type DatabaseObject struct {
+	Name    string           `json:"name"`
+	Kind    string           `json:"kind"`
+	Columns []DatabaseColumn `json:"columns"`
+}
+
+type DatabaseColumn struct {
+	Name     string `json:"name"`
+	DataType string `json:"dataType"`
+	Nullable bool   `json:"nullable"`
+	Default  string `json:"default"`
+}
+
 type DatabaseService struct {
 	mu             sync.RWMutex
 	profiles       []ConnectionProfile
@@ -188,8 +206,145 @@ func (s *DatabaseService) TestConnection(id, password string) (string, error) {
 	return version, nil
 }
 
-func (s *DatabaseService) RunQuery(id, password, query string) (QueryResult, error) {
+func (s *DatabaseService) Databases(id, password string) ([]string, error) {
 	profile, err := s.profile(id)
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	db, err := openDatabase(profile, password)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+	rows, err := db.QueryContext(ctx, "SHOW DATABASES")
+	if err != nil {
+		return nil, fmt.Errorf("list databases: %w", err)
+	}
+	defer rows.Close()
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, fmt.Errorf("read database list columns: %w", err)
+	}
+	if len(columns) == 0 {
+		return []string{}, nil
+	}
+	databases := make([]string, 0)
+	for rows.Next() {
+		values := make([]any, len(columns))
+		destinations := make([]any, len(columns))
+		for i := range values {
+			destinations[i] = &values[i]
+		}
+		if err := rows.Scan(destinations...); err != nil {
+			return nil, fmt.Errorf("read database list: %w", err)
+		}
+		name := values[0]
+		switch value := name.(type) {
+		case string:
+			databases = append(databases, value)
+		case []byte:
+			databases = append(databases, string(value))
+		default:
+			databases = append(databases, fmt.Sprint(value))
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read database list: %w", err)
+	}
+	return databases, nil
+}
+
+func (s *DatabaseService) ExploreSchema(id, password, database string) ([]DatabaseSchema, error) {
+	profile, err := s.profileForDatabase(id, database)
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+	defer cancel()
+	db, err := openDatabase(profile, password)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	rows, err := db.QueryContext(ctx, `
+		SELECT schema_name
+		FROM information_schema.schemata
+		WHERE schema_name NOT IN ('information_schema', 'pg_catalog', 'crdb_internal')
+		ORDER BY schema_name`)
+	if err != nil {
+		return nil, fmt.Errorf("list schemas: %w", err)
+	}
+	schemas := make([]DatabaseSchema, 0)
+	indices := make(map[string]int)
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			rows.Close()
+			return nil, fmt.Errorf("read schema list: %w", err)
+		}
+		indices[name] = len(schemas)
+		schemas = append(schemas, DatabaseSchema{Name: name, Objects: []DatabaseObject{}})
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, fmt.Errorf("read schema list: %w", err)
+	}
+	rows.Close()
+
+	rows, err = db.QueryContext(ctx, `
+		SELECT t.table_schema, t.table_name, t.table_type,
+		       c.column_name, c.data_type, c.is_nullable, c.column_default
+		FROM information_schema.tables AS t
+		LEFT JOIN information_schema.columns AS c
+		  ON c.table_schema = t.table_schema AND c.table_name = t.table_name
+		WHERE t.table_schema NOT IN ('information_schema', 'pg_catalog', 'crdb_internal')
+		ORDER BY t.table_schema, t.table_name, c.ordinal_position`)
+	if err != nil {
+		return nil, fmt.Errorf("list tables and columns: %w", err)
+	}
+	defer rows.Close()
+	objectIndices := make(map[string]int)
+	for rows.Next() {
+		var schemaName, objectName, tableType string
+		var columnName, dataType, nullable, defaultValue sql.NullString
+		if err := rows.Scan(&schemaName, &objectName, &tableType, &columnName, &dataType, &nullable, &defaultValue); err != nil {
+			return nil, fmt.Errorf("read schema objects: %w", err)
+		}
+		schemaIndex, ok := indices[schemaName]
+		if !ok {
+			continue
+		}
+		key := schemaName + "\\x00" + objectName
+		objectIndex, ok := objectIndices[key]
+		if !ok {
+			kind := "table"
+			if strings.EqualFold(tableType, "VIEW") {
+				kind = "view"
+			} else if strings.Contains(strings.ToLower(tableType), "materialized") {
+				kind = "materialized view"
+			}
+			objectIndex = len(schemas[schemaIndex].Objects)
+			objectIndices[key] = objectIndex
+			schemas[schemaIndex].Objects = append(schemas[schemaIndex].Objects, DatabaseObject{Name: objectName, Kind: kind, Columns: []DatabaseColumn{}})
+		}
+		if columnName.Valid {
+			schemas[schemaIndex].Objects[objectIndex].Columns = append(schemas[schemaIndex].Objects[objectIndex].Columns, DatabaseColumn{
+				Name: columnName.String, DataType: dataType.String,
+				Nullable: nullable.String == "YES", Default: defaultValue.String,
+			})
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read schema objects: %w", err)
+	}
+	return schemas, nil
+}
+
+func (s *DatabaseService) RunQuery(id, password, database, query string) (QueryResult, error) {
+	profile, err := s.profileForDatabase(id, database)
 	if err != nil {
 		return QueryResult{}, err
 	}
@@ -241,10 +396,17 @@ func (s *DatabaseService) RunQuery(id, password, query string) (QueryResult, err
 }
 
 func (s *DatabaseService) profile(id string) (ConnectionProfile, error) {
+	return s.profileForDatabase(id, "")
+}
+
+func (s *DatabaseService) profileForDatabase(id, database string) (ConnectionProfile, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	for _, profile := range s.profiles {
 		if profile.ID == id {
+			if database != "" {
+				profile.Database = database
+			}
 			return profile, nil
 		}
 	}

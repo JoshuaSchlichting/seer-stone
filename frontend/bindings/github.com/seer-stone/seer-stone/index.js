@@ -9,5 +9,8 @@ export {
 
 export {
     ConnectionProfile,
+    DatabaseColumn,
+    DatabaseObject,
+    DatabaseSchema,
     QueryResult
 } from "./models.js";
