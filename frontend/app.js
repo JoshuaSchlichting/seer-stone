@@ -4,10 +4,13 @@ const $ = (selector) => document.querySelector(selector);
 const list = $("#connection-list");
 const modal = $("#connection-modal");
 const passwordInput = $("#db-password");
+const passwordModal = $("#password-modal");
 const databaseSelect = $("#database-select");
 const toast = $("#toast");
 const themeSelect = $("#theme-select");
 const paletteSelect = $("#palette-select");
+const connectionContextMenu = $("#connection-context-menu");
+let contextProfileId = "";
 const toggleConnectionsButton = $("#toggle-connections");
 const connectionSectionBody = $("#connection-section-body");
 let connectionsCollapsed = false;
@@ -22,8 +25,14 @@ function setConnectionsCollapsed(collapsed) {
 setConnectionsCollapsed(connectionsCollapsed);
 toggleConnectionsButton.addEventListener("click", () => setConnectionsCollapsed(!connectionsCollapsed));
 document.addEventListener("contextmenu", (event) => {
-  if (event.target.closest('input, textarea, select, [contenteditable="true"], .results-table-wrap')) return;
+  if (event.defaultPrevented || event.target.closest('input, textarea, select, [contenteditable="true"], .results-table-wrap')) return;
   event.preventDefault();
+});
+document.addEventListener("click", (event) => {
+  if (!event.target.closest("#connection-context-menu")) hideConnectionContextMenu();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") hideConnectionContextMenu();
 });
 document.addEventListener("keydown", (event) => {
   const zoomKey = ["+", "=", "-", "_", "0"].includes(event.key) || ["Equal", "Minus", "NumpadAdd", "NumpadSubtract", "Digit0", "Numpad0"].includes(event.code);
@@ -318,6 +327,8 @@ function renderProfiles() {
     button.type = "button";
     button.className = `connection-item${profile.id === selectedId ? " selected" : ""}`;
     button.dataset.id = profile.id;
+    button.title = "Right-click to edit";
+    button.setAttribute("aria-haspopup", "menu");
     const engine = engineInfo(profile.engine);
     button.innerHTML = `<span class="connection-symbol">${engine.icon}</span><span class="connection-copy"><strong></strong><small></small></span><span class="item-dot${connectedIds.has(profile.id) ? " connected" : ""}"></span>`;
     button.querySelector("strong").textContent = profile.name;
@@ -327,7 +338,6 @@ function renderProfiles() {
   const profile = activeProfile();
   $("#active-name").textContent = profile?.name || "Select a cluster";
   const engine = engineInfo(profile?.engine);
-  $("#target-label").textContent = profile ? `${engine.name} · ${profile.username}@${profile.host}${profile.port ? `:${profile.port}` : ""}${profile.database ? `/${profile.database}` : ""}` : "Choose a connection from the sidebar";
   $("#engine-badge").innerHTML = profile ? `<span>${engine.icon}</span> ${engine.name}` : '<span>SQL</span> SQL database';
   passwordInput.disabled = !profile;
   if (profile) passwordInput.value = passwords.get(profile.id) || "";
@@ -359,17 +369,37 @@ function renderProfiles() {
   $("#connect-button").textContent = isConnected ? "Reconnect" : "Connect";
 }
 
-function openModal() {
+function hideConnectionContextMenu() {
+  connectionContextMenu.classList.add("is-hidden");
+  contextProfileId = "";
+}
+
+function openModal(profile = null) {
+  hideConnectionContextMenu();
   $("#connection-form").reset();
-  $("#profile-id").value = "";
-  $("#profile-engine").value = "cockroach";
-  $("#profile-port").value = "26257";
-  $("#profile-database").value = "defaultdb";
-  $("#profile-warehouse").value = "";
-  $("#profile-schema").value = "";
-  $("#profile-role").value = "";
-  $("#profile-ssl").value = "verify-full";
+  $("#profile-id").value = profile?.id || "";
+  $("#profile-engine").value = profile?.engine || "cockroach";
+  $("#profile-port").value = profile?.port || "26257";
+  $("#profile-database").value = profile?.database || "defaultdb";
+  $("#profile-warehouse").value = profile?.warehouse || "";
+  $("#profile-schema").value = profile?.schema || "";
+  $("#profile-role").value = profile?.role || "";
+  $("#profile-ssl").value = profile?.sslMode || "verify-full";
   updateEngineFields();
+  if (profile) {
+    $("#profile-name").value = profile.name;
+    $("#profile-host").value = profile.host;
+    $("#profile-port").value = profile.port || (profile.engine === "postgres" ? "5432" : "26257");
+    $("#profile-database").value = profile.database || "";
+    $("#profile-username").value = profile.username;
+    $("#connection-modal-title").textContent = "Edit connection";
+    $("#connection-modal-subtitle").textContent = "Update this connection’s settings. Passwords remain in memory only.";
+    $("#save-profile").textContent = "Save changes";
+  } else {
+    $("#connection-modal-title").textContent = "New connection";
+    $("#connection-modal-subtitle").textContent = "Add a database connection to your workspace.";
+    $("#save-profile").textContent = "Save connection";
+  }
   $("#profile-error").textContent = "";
   modal.classList.add("is-active");
   $("#profile-name").focus();
@@ -377,6 +407,22 @@ function openModal() {
 
 function closeModal() {
   modal.classList.remove("is-active");
+}
+
+function openPasswordModal() {
+  const profile = activeProfile();
+  if (!profile) return;
+  $("#password-modal-title").textContent = `Connect to ${profile.name}`;
+  $("#password-error").textContent = "";
+  passwordInput.value = passwords.get(profile.id) || "";
+  passwordModal.classList.add("is-active");
+  passwordInput.focus();
+}
+
+function closePasswordModal() {
+  passwordModal.classList.remove("is-active");
+  passwordInput.value = passwords.get(selectedId) || "";
+  $("#password-error").textContent = "";
 }
 
 function formatCell(value) {
@@ -598,22 +644,32 @@ list.addEventListener("dblclick", (event) => {
   connectSelected();
 });
 
+list.addEventListener("contextmenu", (event) => {
+  const item = event.target.closest(".connection-item");
+  if (!item) return;
+  event.preventDefault();
+  contextProfileId = item.dataset.id;
+  connectionContextMenu.classList.remove("is-hidden");
+  const bounds = connectionContextMenu.getBoundingClientRect();
+  connectionContextMenu.style.left = `${Math.max(4, Math.min(event.clientX, innerWidth - bounds.width - 4))}px`;
+  connectionContextMenu.style.top = `${Math.max(4, Math.min(event.clientY, innerHeight - bounds.height - 4))}px`;
+});
+
+$("#edit-connection").addEventListener("click", () => {
+  const profile = profiles.find((item) => item.id === contextProfileId);
+  if (profile) openModal(profile);
+});
+
 $("#profile-engine").addEventListener("change", updateEngineFields);
 $("#add-connection").addEventListener("click", openModal);
 $("#close-modal").addEventListener("click", closeModal);
 $("#cancel-modal").addEventListener("click", closeModal);
 $(".modal-background").addEventListener("click", closeModal);
 
-passwordInput.addEventListener("input", () => {
-  if (selectedId) passwords.set(selectedId, passwordInput.value);
-  connectedIds.delete(selectedId);
-  availableDatabases.delete(selectedId);
-  renderProfiles();
-});
-
 $("#connection-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const saveButton = $("#save-profile");
+  const isEditing = Boolean($("#profile-id").value);
   saveButton.classList.add("is-loading");
   $("#profile-error").textContent = "";
   try {
@@ -632,11 +688,17 @@ $("#connection-form").addEventListener("submit", async (event) => {
     });
     const password = $("#profile-password").value;
     if (password) passwords.set(saved.id, password);
+    connectedIds.delete(saved.id);
+    availableDatabases.delete(saved.id);
+    schemaData = [];
+    expandedSchemas.clear();
+    expandedObjects.clear();
+    renderSchemaTree("Connect to load schema metadata.");
     profiles = await DatabaseService.Profiles();
     switchQueryWorkspace(saved.id);
     renderProfiles();
     closeModal();
-    showToast("Connection saved. Credentials remain in memory only.");
+    showToast(isEditing ? "Connection updated. Credentials remain in memory only." : "Connection saved. Credentials remain in memory only.");
   } catch (error) {
     $("#profile-error").textContent = String(error);
   } finally {
@@ -646,10 +708,9 @@ $("#connection-form").addEventListener("submit", async (event) => {
 
 async function connectSelected() {
   if (!selectedId) return;
-  const password = passwordInput.value;
+  const password = passwordInput.value || passwords.get(selectedId) || "";
   if (!password) {
-    showToast("Enter the database password first.", true);
-    passwordInput.focus();
+    openPasswordModal();
     return;
   }
   const connectionId = selectedId;
@@ -682,6 +743,20 @@ async function connectSelected() {
 }
 
 $("#connect-button").addEventListener("click", connectSelected);
+$("#close-password-modal").addEventListener("click", closePasswordModal);
+$("#cancel-password-modal").addEventListener("click", closePasswordModal);
+$("#password-modal-background").addEventListener("click", closePasswordModal);
+$("#password-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!selectedId || !passwordInput.value) {
+    $("#password-error").textContent = "Enter a password to connect.";
+    return;
+  }
+  passwords.set(selectedId, passwordInput.value);
+  closePasswordModal();
+  renderProfiles();
+  await connectSelected();
+});
 
 async function executeQuery(query, source = "query") {
   if (!selectedId) return;

@@ -149,20 +149,6 @@ body {
     gap: 12px;
   }
 
-  .session-bar {
-    align-items: flex-start;
-    gap: 12px;
-    flex-direction: column;
-  }
-
-  .password-field {
-    width: 100%;
-  }
-
-  .password-field .input {
-    min-width: 0;
-    flex: 1;
-  }
 }
 
 @media (max-width: 520px) {
@@ -210,14 +196,8 @@ body {
     white-space: nowrap;
   }
 
-  .session-target,
-  .session-target > div,
   .workspace-title > div {
     min-width: 0;
-  }
-
-  .session-target strong {
-    overflow-wrap: anywhere;
   }
 
   .theme-control > span:first-child {
@@ -244,4 +224,41 @@ body {
     padding-right: 9px;
     padding-left: 10px;
   }
+}
+
+.modal-card.connection-modal-card.credential-modal-card {
+  width: min(420px, calc(100vw - 35px));
+}
+
+.credential-modal-card .control .input {
+  width: 100%;
+}
+
+.connection-context-menu {
+  position: fixed;
+  z-index: 80;
+  min-width: 160px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg);
+  box-shadow: 0 8px 24px #0003;
+}
+
+.connection-context-menu button {
+  width: 100%;
+  padding: 8px 11px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.connection-context-menu button:hover,
+.connection-context-menu button:focus-visible {
+  background: var(--palette-soft, #e1f3ef);
+  outline: none;
 }

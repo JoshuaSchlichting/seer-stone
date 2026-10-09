@@ -47,7 +47,6 @@
 
       <section class="workspace">
         <div class="workspace-title"><div><p class="overline">QUERY EDITOR</p><h1>SQL workspace</h1><p class="subtitle-copy">Write and run SQL against CockroachDB, PostgreSQL, or Snowflake.</p></div><div id="engine-badge" class="engine-badge"><span>SQL</span> SQL database</div></div>
-        <div class="session-bar"><div class="session-target"><span class="target-icon">⌖</span><div><small>ACTIVE CONNECTION</small><strong id="target-label">Choose a cluster from the sidebar</strong></div></div><label class="password-field"><span>Password</span><input id="db-password" class="input is-small" type="password" autocomplete="current-password" placeholder="Enter database password" disabled></label></div>
         <section class="editor-panel">
           <div class="panel-toolbar"><div id="query-tabs" class="query-tabs" role="tablist" aria-label="SQL query tabs"></div><button id="add-query-tab" class="new-query-tab" type="button" title="New query tab" aria-label="New query tab">＋</button><div class="editor-tools"><span>SQL</span><span class="tool-divider"></span><span>⌘ ↵ to run</span></div></div>
           <div class="editor-wrap"><div class="line-numbers">1<br>2<br>3<br>4<br>5</div><textarea id="sql-editor" spellcheck="false" aria-label="SQL query editor">SELECT current_database(), now();</textarea></div>
@@ -65,7 +64,7 @@
   <div id="connection-modal" class="modal">
     <div class="modal-background"></div>
     <div class="modal-card connection-modal-card">
-      <header class="modal-card-head"><div><p class="modal-card-title">New connection</p><p class="modal-subtitle">Add a database connection to your workspace.</p></div><button class="delete" aria-label="close" id="close-modal"></button></header>
+      <header class="modal-card-head"><div><p id="connection-modal-title" class="modal-card-title">New connection</p><p id="connection-modal-subtitle" class="modal-subtitle">Add a database connection to your workspace.</p></div><button class="delete" aria-label="close" id="close-modal"></button></header>
       <section class="modal-card-body">
         <form id="connection-form">
           <input id="profile-id" type="hidden">
@@ -82,6 +81,20 @@
       </section>
     </div>
   </div>
+  <div id="password-modal" class="modal">
+    <div class="modal-background" id="password-modal-background"></div>
+    <div class="modal-card connection-modal-card credential-modal-card">
+      <header class="modal-card-head"><div><p id="password-modal-title" class="modal-card-title">Connect to database</p><p class="modal-subtitle">Enter the password for this connection. It stays in memory only.</p></div><button class="delete" aria-label="close" id="close-password-modal"></button></header>
+      <section class="modal-card-body">
+        <form id="password-form">
+          <div class="field"><label class="label" for="db-password">Password</label><div class="control"><input id="db-password" class="input" type="password" autocomplete="current-password" placeholder="Database password" disabled></div></div>
+          <p id="password-error" class="help is-danger"></p>
+          <div class="modal-actions"><button type="button" id="cancel-password-modal" class="button cancel-button">Cancel</button><button type="submit" class="button save-button">Connect</button></div>
+        </form>
+      </section>
+    </div>
+  </div>
+  <div id="connection-context-menu" class="connection-context-menu is-hidden" role="menu"><button id="edit-connection" type="button" role="menuitem">Edit connection</button></div>
   <div id="toast" class="toast" role="status"></div>
   <script type="module" src="/app.js"></script>
 </body>

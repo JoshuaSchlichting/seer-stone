@@ -126,7 +126,6 @@
 }
 
 :root[data-theme="dark"] .topbar,
-:root[data-theme="dark"] .session-bar,
 :root[data-theme="dark"] .engine-badge,
 :root[data-theme="dark"] .editor-panel,
 :root[data-theme="dark"] .editor-wrap,
@@ -143,7 +142,6 @@
 
 :root[data-theme="dark"] .breadcrumb strong,
 :root[data-theme="dark"] .workspace-title h1,
-:root[data-theme="dark"] .session-target strong,
 :root[data-theme="dark"] .results-heading h2 {
   color: #dce7e5;
 }
@@ -151,8 +149,6 @@
 :root[data-theme="dark"] .breadcrumb,
 :root[data-theme="dark"] .subtitle-copy,
 :root[data-theme="dark"] .engine-badge,
-:root[data-theme="dark"] .session-target small,
-:root[data-theme="dark"] .password-field,
 :root[data-theme="dark"] .connection-state,
 :root[data-theme="dark"] .result-meta {
   color: #91a3a5;
@@ -163,7 +159,6 @@
 }
 
 :root[data-theme="dark"] .theme-control select,
-:root[data-theme="dark"] .password-field .input,
 :root[data-theme="dark"] .modal-card-body .input,
 :root[data-theme="dark"] .modal-card-body select {
   border-color: #35494c;
@@ -244,8 +239,7 @@
   color: #c0cecc;
 }
 
-:root[data-theme="dark"] .modal-card-body .input::placeholder,
-:root[data-theme="dark"] .password-field .input::placeholder {
+:root[data-theme="dark"] .modal-card-body .input::placeholder {
   color: #75898b;
 }
 
