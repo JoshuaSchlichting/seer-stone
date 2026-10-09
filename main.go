@@ -28,6 +28,15 @@ func main() {
 		},
 	})
 
+	appMenu := application.NewMenu()
+	appMenu.AddRole(application.AppMenu)
+	appMenu.AddRole(application.FileMenu)
+	appMenu.AddRole(application.EditMenu)
+	appMenu.AddSubmenu("View").AddRole(application.ToggleFullscreen)
+	appMenu.AddRole(application.WindowMenu)
+	appMenu.AddRole(application.HelpMenu)
+	app.Menu.SetApplicationMenu(appMenu)
+
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:   "main",
 		Title:  "Seer Stone — SQL Client",

@@ -25,6 +25,19 @@ document.addEventListener("contextmenu", (event) => {
   if (event.target.closest('input, textarea, select, [contenteditable="true"], .results-table-wrap')) return;
   event.preventDefault();
 });
+document.addEventListener("keydown", (event) => {
+  const zoomKey = ["+", "=", "-", "_", "0"].includes(event.key) || ["Equal", "Minus", "NumpadAdd", "NumpadSubtract", "Digit0", "Numpad0"].includes(event.code);
+  if ((event.metaKey || event.ctrlKey) && zoomKey) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+}, true);
+document.addEventListener("wheel", (event) => {
+  if (event.ctrlKey) event.preventDefault();
+}, { capture: true, passive: false });
+for (const gesture of ["gesturestart", "gesturechange"]) {
+  document.addEventListener(gesture, (event) => event.preventDefault(), { passive: false });
+}
 const systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
 function applyTheme(preference, persist = false) {
   const dark = preference === "dark" || (preference === "system" && systemTheme.matches);
