@@ -1,0 +1,19 @@
+version: '3'
+
+tasks:
+  dev:
+    desc: Run the app with the built-in Wails MCP server enabled
+    cmds:
+      - WAILS_MCP=1 wails3 dev
+  build:
+    desc: Build a production app (MCP is not enabled)
+    cmds:
+      - wails3 build
+  check:
+    desc: Compile-check the Go application
+    cmds:
+      - go test ./...
+  bindings:
+    desc: Regenerate Wails JavaScript service bindings
+    cmds:
+      - wails3 generate bindings -b -d frontend/bindings .

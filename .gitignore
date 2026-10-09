@@ -1,0 +1,6 @@
+# Local CockroachDB credentials — never commit
+/connections.local.json
+
+# Build artifacts
+/bin/
+/build/bin/

@@ -1,0 +1,28 @@
+version: '3'
+
+info:
+  companyName: "Seer Stone"
+  productName: "Seer Stone"
+  productIdentifier: "com.seerstone.app"
+  description: "A tiny Wails v3 starter app"
+  copyright: ""
+  comments: ""
+  version: "0.1.0"
+
+dev_mode:
+  root_path: .
+  log_level: warn
+  debounce: 1000
+  ignore:
+    dir:
+      - .git
+      - bin
+    file:
+      - .DS_Store
+      - go.sum
+    watched_extension:
+      - "*.go"
+    git_ignore: true
+  executes:
+    - cmd: env -u FRONTEND_DEVSERVER_URL go run -tags mcp .
+      type: primary
