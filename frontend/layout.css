@@ -1,0 +1,49 @@
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
+.app-shell {
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sidebar {
+  height: 100vh;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
+.schema-browser {
+  flex: 1 0 190px;
+  min-height: 190px;
+}
+
+.schema-tree {
+  flex: 1 1 auto;
+  overscroll-behavior-y: contain;
+}
+
+.main-panel {
+  display: flex;
+  height: 100vh;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.topbar {
+  flex: 0 0 61px;
+}
+
+.workspace {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}

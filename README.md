@@ -21,6 +21,8 @@ User-created profiles are stored in the current user's config directory under `s
 
 Select a profile, enter its password, and choose **Connect** to test it. The database selector lists databases visible to the account. Choose one to browse schemas, tables, views, and columns in the sidebar. The SQL workspace runs against the selected database. Query execution has a 60-second timeout; connection tests have a 12-second timeout. Connection pools are retained per profile/database while the app is running.
 
+Query tabs and SQL text are saved locally per connection in the app's browser storage. Switching to a connection with no saved workspace opens a fresh `query.sql`; returning to a connection restores its tabs and queries. Query results are not persisted.
+
 PostgreSQL and CockroachDB use secure `verify-full` TLS by default. Use `disable` only for local development databases.
 
 ## Verify and regenerate bindings

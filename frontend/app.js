@@ -48,6 +48,204 @@ const selectedDatabases = new Map();
 const expandedSchemas = new Set();
 const expandedObjects = new Set();
 const passwords = new Map();
+let queryWorkspaceStore = {};
+try {
+  const savedWorkspaces = JSON.parse(localStorage.getItem("seer-stone-query-workspaces") || "{}");
+  if (savedWorkspaces && typeof savedWorkspaces === "object" && !Array.isArray(savedWorkspaces)) queryWorkspaceStore = savedWorkspaces;
+} catch {}
+let nextTabId = 2;
+let activeTabId = 1;
+let queryTabs = [{ id: 1, name: "query.sql", sql: $("#sql-editor").value, result: null, status: "Ready to query" }];
+
+function activeQueryTab() {
+  return queryTabs.find((tab) => tab.id === activeTabId);
+}
+
+function setTabStatus(status, id = activeTabId, connectionId = selectedId) {
+  if (connectionId !== selectedId) return;
+  const tab = queryTabs.find((item) => item.id === id);
+  if (tab) tab.status = status;
+  if (id === activeTabId) $("#query-message").textContent = status;
+}
+
+function saveActiveQuery() {
+  const tab = activeQueryTab();
+  if (tab) tab.sql = $("#sql-editor").value;
+}
+
+function persistQueryWorkspace(id = selectedId) {
+  if (!id) return;
+  saveActiveQuery();
+  queryWorkspaceStore[id] = {
+    tabs: queryTabs.map(({ id: tabId, name, sql }) => ({ id: tabId, name, sql })),
+    activeTabId,
+    nextTabId,
+  };
+  try { localStorage.setItem("seer-stone-query-workspaces", JSON.stringify(queryWorkspaceStore)); } catch {}
+}
+
+function loadQueryWorkspace(id, preserveScratch = false) {
+  const saved = queryWorkspaceStore[id];
+  const restoredTabs = Array.isArray(saved?.tabs)
+    ? saved.tabs.filter((tab) => Number.isInteger(tab.id) && typeof tab.name === "string" && typeof tab.sql === "string")
+    : [];
+  if (restoredTabs.length) {
+    queryTabs = restoredTabs.map((tab) => ({ ...tab, result: null, status: "Ready to query" }));
+    activeTabId = queryTabs.some((tab) => tab.id === saved.activeTabId) ? saved.activeTabId : queryTabs[0].id;
+    nextTabId = Math.max(Number(saved.nextTabId) || 1, ...queryTabs.map((tab) => tab.id + 1));
+  } else if (preserveScratch) {
+    queryTabs = queryTabs.map((tab) => ({ ...tab, result: null, status: "Ready to query" }));
+    nextTabId = Math.max(nextTabId, ...queryTabs.map((tab) => tab.id + 1));
+  } else {
+    queryTabs = [{ id: 1, name: "query.sql", sql: "", result: null, status: "Ready to query" }];
+    activeTabId = 1;
+    nextTabId = 2;
+  }
+  $("#sql-editor").value = activeQueryTab().sql;
+  renderQueryTabs();
+  showTabOutput(activeQueryTab());
+  persistQueryWorkspace(id);
+}
+
+function switchQueryWorkspace(id) {
+  if (selectedId === id) return;
+  const preserveScratch = !selectedId;
+  persistQueryWorkspace();
+  selectedId = id;
+  loadQueryWorkspace(id, preserveScratch);
+}
+
+function showTabOutput(tab) {
+  if (tab.result) {
+    renderResult(tab.result);
+  } else {
+    $("#results-table-wrap").replaceChildren();
+    $("#results-table-wrap").classList.add("is-hidden");
+    $("#result-state").classList.remove("is-hidden");
+    $("#result-meta").textContent = "Run a query to see results";
+  }
+  $("#query-message").textContent = tab.status;
+}
+
+function renderQueryTabs() {
+  const container = $("#query-tabs");
+  container.replaceChildren();
+  for (const tab of queryTabs) {
+    const item = document.createElement("div");
+    item.className = `query-tab${tab.id === activeTabId ? " active" : ""}`;
+    item.setAttribute("role", "presentation");
+    const select = document.createElement("button");
+    select.type = "button";
+    select.className = "query-tab-select";
+    select.setAttribute("role", "tab");
+    select.setAttribute("aria-selected", String(tab.id === activeTabId));
+    select.setAttribute("aria-label", `${tab.name}; double-click or press F2 to rename`);
+    select.title = "Double-click or press F2 to rename";
+    select.textContent = `▤ ${tab.name}`;
+    select.addEventListener("click", () => activateQueryTab(tab.id));
+    select.addEventListener("dblclick", () => {
+      activateQueryTab(tab.id);
+      renameQueryTab(tab.id);
+    });
+    select.addEventListener("keydown", (event) => {
+      if (event.key === "F2") {
+        event.preventDefault();
+        activateQueryTab(tab.id);
+        renameQueryTab(tab.id);
+      }
+    });
+    item.append(select);
+    if (queryTabs.length > 1) {
+      const close = document.createElement("button");
+      close.type = "button";
+      close.className = "query-tab-close";
+      close.setAttribute("aria-label", `Close ${tab.name}`);
+      close.textContent = "×";
+      close.addEventListener("click", () => closeQueryTab(tab.id));
+      item.append(close);
+    }
+    container.append(item);
+  }
+}
+
+function activateQueryTab(id) {
+  if (id === activeTabId) return;
+  saveActiveQuery();
+  activeTabId = id;
+  const tab = activeQueryTab();
+  $("#sql-editor").value = tab.sql;
+  renderQueryTabs();
+  showTabOutput(tab);
+  persistQueryWorkspace();
+}
+
+function renameQueryTab(id) {
+  const tab = queryTabs.find((item) => item.id === id);
+  const item = [...$("#query-tabs").children].find((node) => node.classList.contains("query-tab") && node.classList.contains("active"));
+  const select = item?.querySelector(".query-tab-select");
+  if (!tab || !select) return;
+
+  const input = document.createElement("input");
+  input.className = "query-tab-rename";
+  input.value = tab.name;
+  input.setAttribute("aria-label", "Rename query tab");
+  select.replaceWith(input);
+  input.focus();
+  input.select();
+
+  let finished = false;
+  const finish = (save) => {
+    if (finished) return;
+    finished = true;
+    const proposed = input.value.trim();
+    if (save && proposed) {
+      const name = proposed.toLowerCase().endsWith(".sql") ? proposed : `${proposed}.sql`;
+      const duplicate = queryTabs.some((other) => other.id !== id && other.name.toLowerCase() === name.toLowerCase());
+      if (duplicate) showToast("Another query tab already has that name.", true);
+      else tab.name = name;
+    }
+    renderQueryTabs();
+    persistQueryWorkspace();
+  };
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      finish(true);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      finish(false);
+    }
+  });
+  input.addEventListener("blur", () => finish(true));
+}
+
+function addQueryTab() {
+  saveActiveQuery();
+  const index = nextTabId++;
+  const tab = { id: index, name: `query-${index}.sql`, sql: "", result: null, status: "Ready to query" };
+  queryTabs.push(tab);
+  activeTabId = tab.id;
+  $("#sql-editor").value = tab.sql;
+  renderQueryTabs();
+  showTabOutput(tab);
+  persistQueryWorkspace();
+  $("#sql-editor").focus();
+}
+
+function closeQueryTab(id) {
+  if (queryTabs.length === 1) return;
+  saveActiveQuery();
+  const index = queryTabs.findIndex((tab) => tab.id === id);
+  queryTabs.splice(index, 1);
+  if (activeTabId === id) {
+    const next = queryTabs[Math.min(index, queryTabs.length - 1)];
+    activeTabId = next.id;
+    $("#sql-editor").value = next.sql;
+    showTabOutput(next);
+  }
+  renderQueryTabs();
+  persistQueryWorkspace();
+}
 
 function showToast(message, isError = false) {
   toast.textContent = message;
@@ -232,6 +430,7 @@ function renderSchemaTree(message = "") {
         objectButton.addEventListener("click", () => {
           const query = `SELECT * FROM ${quoteIdentifier(schema.name)}.${quoteIdentifier(object.name)} LIMIT 50;`;
           $("#sql-editor").value = query;
+          saveActiveQuery();
           executeQuery(query, `${schema.name}.${object.name}`);
         });
         const expandButton = document.createElement("button");
@@ -352,9 +551,8 @@ function selectConnection(id) {
   expandedSchemas.clear();
   expandedObjects.clear();
   renderSchemaTree("Select Connect to load schema metadata.");
-  selectedId = id;
+  switchQueryWorkspace(id);
   renderProfiles();
-  $("#query-message").textContent = "Ready to query";
   if (connectedIds.has(id)) refreshSchema();
 }
 
@@ -405,7 +603,7 @@ $("#connection-form").addEventListener("submit", async (event) => {
     const password = $("#profile-password").value;
     if (password) passwords.set(saved.id, password);
     profiles = await DatabaseService.Profiles();
-    selectedId = saved.id;
+    switchQueryWorkspace(saved.id);
     renderProfiles();
     closeModal();
     showToast("Connection saved. Credentials remain in memory only.");
@@ -424,26 +622,29 @@ async function connectSelected() {
     passwordInput.focus();
     return;
   }
-  passwords.set(selectedId, password);
+  const connectionId = selectedId;
+  const profile = profiles.find((item) => item.id === connectionId);
+  passwords.set(connectionId, password);
   const button = $("#connect-button");
   button.classList.add("is-loading");
-  $("#query-message").textContent = "Connecting…";
+  const tabId = activeTabId;
+  setTabStatus("Connecting…", tabId, connectionId);
   try {
-    const serverVersion = await DatabaseService.TestConnection(selectedId, password);
-    const databases = await DatabaseService.Databases(selectedId, password);
-    connectedIds.add(selectedId);
-    availableDatabases.set(selectedId, databases);
-    const current = selectedDatabases.get(selectedId) || activeProfile()?.database;
-    selectedDatabases.set(selectedId, databases.includes(current) ? current : (databases[0] || activeProfile()?.database || ""));
+    const serverVersion = await DatabaseService.TestConnection(connectionId, password);
+    const databases = await DatabaseService.Databases(connectionId, password);
+    connectedIds.add(connectionId);
+    availableDatabases.set(connectionId, databases);
+    const current = selectedDatabases.get(connectionId) || profile?.database;
+    selectedDatabases.set(connectionId, databases.includes(current) ? current : (databases[0] || profile?.database || ""));
     renderProfiles();
-    await refreshSchema();
-    $("#query-message").textContent = "Connected successfully";
-    showToast(`Connected to ${engineInfo(activeProfile()?.engine).name} · ${serverVersion.split(" ").slice(0, 2).join(" ")}`);
+    if (selectedId === connectionId) await refreshSchema();
+    setTabStatus("Connected successfully", tabId, connectionId);
+    showToast(`Connected to ${engineInfo(profile?.engine).name} · ${serverVersion.split(" ").slice(0, 2).join(" ")}`);
   } catch (error) {
-    connectedIds.delete(selectedId);
-    availableDatabases.delete(selectedId);
+    connectedIds.delete(connectionId);
+    availableDatabases.delete(connectionId);
     renderProfiles();
-    $("#query-message").textContent = "Connection failed";
+    setTabStatus("Connection failed", tabId, connectionId);
     showToast(String(error), true);
   } finally {
     button.classList.remove("is-loading");
@@ -460,19 +661,29 @@ async function executeQuery(query, source = "query") {
     passwordInput.focus();
     return;
   }
-  passwords.set(selectedId, password);
+  const connectionId = selectedId;
+  const databaseName = databaseSelect.value;
+  passwords.set(connectionId, password);
+  const tabId = activeTabId;
+  const tab = activeQueryTab();
+  tab.sql = $("#sql-editor").value;
+  if (source === "query") tab.sql = query;
+  persistQueryWorkspace();
   const button = $("#run-query");
   button.classList.add("is-loading");
-  $("#query-message").textContent = source === "query" ? "Running query…" : `Loading ${source}…`;
+  setTabStatus(source === "query" ? "Running query…" : `Loading ${source}…`, tabId, connectionId);
   try {
-    const result = await DatabaseService.RunQuery(selectedId, password, databaseSelect.value, query);
-    connectedIds.add(selectedId);
-    renderResult(result);
+    const result = await DatabaseService.RunQuery(connectionId, password, databaseName, query);
+    connectedIds.add(connectionId);
+    tab.result = result;
     renderProfiles();
-    $("#query-message").textContent = source === "query" ? "Query completed" : `Preview: ${source}`;
-    if (source !== "query") $(".results-section").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    setTabStatus(source === "query" ? "Query completed" : `Preview: ${source}`, tabId, connectionId);
+    if (selectedId === connectionId && activeTabId === tabId) {
+      renderResult(result);
+      if (source !== "query") $(".results-section").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
   } catch (error) {
-    $("#query-message").textContent = "Query failed";
+    setTabStatus("Query failed", tabId, connectionId);
     showToast(String(error), true);
   } finally {
     button.classList.remove("is-loading");
@@ -484,6 +695,9 @@ function quoteIdentifier(identifier) {
 }
 
 $("#run-query").addEventListener("click", () => executeQuery($("#sql-editor").value));
+$("#sql-editor").addEventListener("input", () => persistQueryWorkspace());
+$("#add-query-tab").addEventListener("click", addQueryTab);
+renderQueryTabs();
 
 $("#sql-editor").addEventListener("keydown", (event) => {
   if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {

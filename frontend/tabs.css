@@ -1,0 +1,113 @@
+.panel-toolbar {
+  justify-content: flex-start;
+}
+
+.query-tabs {
+  display: flex;
+  min-width: 0;
+  height: 100%;
+  flex: 1 1 auto;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.query-tab {
+  display: flex;
+  min-width: 0;
+  height: 100%;
+  flex: 0 0 auto;
+  align-items: stretch;
+  border-bottom: 2px solid transparent;
+}
+
+.query-tab.active {
+  border-bottom-color: var(--palette-primary, #187c73);
+}
+
+.query-tab-select,
+.query-tab-close,
+.new-query-tab {
+  border: 0;
+  background: transparent;
+  color: #718184;
+  cursor: pointer;
+}
+
+.query-tab-select {
+  max-width: 190px;
+  overflow: hidden;
+  padding: 0 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 10px 'DM Mono', monospace;
+}
+
+.query-tab.active .query-tab-select {
+  color: #405659;
+}
+
+.query-tab-select:hover,
+.query-tab-close:hover,
+.new-query-tab:hover {
+  background: #f0f5f4;
+  color: var(--palette-primary, #187c73);
+}
+
+.query-tab-close {
+  width: 24px;
+  padding: 0 5px;
+  font-size: 15px;
+}
+
+.new-query-tab {
+  width: 34px;
+  flex: 0 0 34px;
+  border-left: 1px solid #e8eeee;
+  font-size: 17px;
+}
+
+:root[data-theme="dark"] .query-tab-select,
+:root[data-theme="dark"] .query-tab-close,
+:root[data-theme="dark"] .new-query-tab {
+  color: #9aadae;
+}
+
+:root[data-theme="dark"] .query-tab.active .query-tab-select {
+  color: #d2e2df;
+}
+
+:root[data-theme="dark"] .query-tab-select:hover,
+:root[data-theme="dark"] .query-tab-close:hover,
+:root[data-theme="dark"] .new-query-tab:hover {
+  background: #203336;
+  color: var(--palette-dark-ink, #8fd0bd);
+}
+
+:root[data-theme="dark"] .new-query-tab {
+  border-left-color: #2c3d40;
+}
+
+.query-tab-rename {
+  width: 145px;
+  min-width: 80px;
+  height: 27px;
+  align-self: center;
+  margin: 0 5px;
+  padding: 0 6px;
+  border: 1px solid var(--palette-border, #cfe2de);
+  border-radius: 4px;
+  outline: none;
+  background: #fff;
+  color: #405659;
+  font: 10px 'DM Mono', monospace;
+}
+
+.query-tab-rename:focus {
+  border-color: var(--palette-primary, #187c73);
+  box-shadow: 0 0 0 1px var(--palette-primary, #187c73);
+}
+
+:root[data-theme="dark"] .query-tab-rename {
+  background: #172426;
+  color: #dce7e5;
+}

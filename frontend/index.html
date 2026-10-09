@@ -16,6 +16,8 @@
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/schema.css">
   <link rel="stylesheet" href="/theme.css">
+  <link rel="stylesheet" href="/layout.css">
+  <link rel="stylesheet" href="/tabs.css">
 </head>
 <body>
   <div class="app-shell">
@@ -44,7 +46,7 @@
         <div class="workspace-title"><div><p class="overline">QUERY EDITOR</p><h1>SQL workspace</h1><p class="subtitle-copy">Write and run SQL against CockroachDB, PostgreSQL, or Snowflake.</p></div><div id="engine-badge" class="engine-badge"><span>SQL</span> SQL database</div></div>
         <div class="session-bar"><div class="session-target"><span class="target-icon">⌖</span><div><small>ACTIVE CONNECTION</small><strong id="target-label">Choose a cluster from the sidebar</strong></div></div><label class="password-field"><span>Password</span><input id="db-password" class="input is-small" type="password" autocomplete="current-password" placeholder="Enter database password" disabled></label></div>
         <section class="editor-panel">
-          <div class="panel-toolbar"><div class="tab-active"><span class="sql-icon">▤</span> query.sql <i></i></div><div class="editor-tools"><span>SQL</span><span class="tool-divider"></span><span>⌘ ↵ to run</span></div></div>
+          <div class="panel-toolbar"><div id="query-tabs" class="query-tabs" role="tablist" aria-label="SQL query tabs"></div><button id="add-query-tab" class="new-query-tab" type="button" title="New query tab" aria-label="New query tab">＋</button><div class="editor-tools"><span>SQL</span><span class="tool-divider"></span><span>⌘ ↵ to run</span></div></div>
           <div class="editor-wrap"><div class="line-numbers">1<br>2<br>3<br>4<br>5</div><textarea id="sql-editor" spellcheck="false" aria-label="SQL query editor">SELECT current_database(), now();</textarea></div>
           <div class="editor-footer"><span id="query-message">Ready to query</span><button id="run-query" class="button run-button" disabled><span>▶</span> Run query</button></div>
         </section>
