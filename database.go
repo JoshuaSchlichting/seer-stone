@@ -56,11 +56,17 @@ type DatabaseColumn struct {
 	Default  string `json:"default"`
 }
 
+type databasePool struct {
+	db          *sql.DB
+	fingerprint [32]byte
+}
+
 type DatabaseService struct {
 	mu             sync.RWMutex
 	profiles       []ConnectionProfile
 	localPasswords map[string]string
 	localIDs       map[string]bool
+	pools          map[string]databasePool
 	file           string
 }
 
@@ -77,6 +83,7 @@ func NewDatabaseService() (*DatabaseService, error) {
 		file:           filepath.Join(dir, "connections.json"),
 		localPasswords: make(map[string]string),
 		localIDs:       make(map[string]bool),
+		pools:          make(map[string]databasePool),
 	}
 	data, err := os.ReadFile(service.file)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -138,6 +145,7 @@ func (s *DatabaseService) SaveProfile(profile ConnectionProfile) (ConnectionProf
 	found := false
 	for i := range s.profiles {
 		if s.profiles[i].ID == profile.ID {
+			s.closeProfilePoolsLocked(profile.ID)
 			s.profiles[i] = profile
 			found = true
 			break
@@ -160,6 +168,7 @@ func (s *DatabaseService) DeleteProfile(id string) error {
 	}
 	for i, profile := range s.profiles {
 		if profile.ID == id {
+			s.closeProfilePoolsLocked(id)
 			s.profiles = append(s.profiles[:i], s.profiles[i+1:]...)
 			return s.persistLocked()
 		}
@@ -191,11 +200,10 @@ func (s *DatabaseService) TestConnection(id, password string) (string, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
 	defer cancel()
-	db, err := openDatabase(profile, password)
+	db, err := s.database(profile, password)
 	if err != nil {
 		return "", err
 	}
-	defer db.Close()
 	if err := db.PingContext(ctx); err != nil {
 		return "", fmt.Errorf("connection failed: %w", err)
 	}
@@ -213,11 +221,10 @@ func (s *DatabaseService) Databases(id, password string) ([]string, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	db, err := openDatabase(profile, password)
+	db, err := s.database(profile, password)
 	if err != nil {
 		return nil, err
 	}
-	defer db.Close()
 	rows, err := db.QueryContext(ctx, "SHOW DATABASES")
 	if err != nil {
 		return nil, fmt.Errorf("list databases: %w", err)
@@ -263,11 +270,10 @@ func (s *DatabaseService) ExploreSchema(id, password, database string) ([]Databa
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 	defer cancel()
-	db, err := openDatabase(profile, password)
+	db, err := s.database(profile, password)
 	if err != nil {
 		return nil, err
 	}
-	defer db.Close()
 
 	rows, err := db.QueryContext(ctx, `
 		SELECT schema_name
@@ -354,11 +360,10 @@ func (s *DatabaseService) RunQuery(id, password, database, query string) (QueryR
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	db, err := openDatabase(profile, password)
+	db, err := s.database(profile, password)
 	if err != nil {
 		return QueryResult{}, err
 	}
-	defer db.Close()
 
 	started := time.Now()
 	rows, err := db.QueryContext(ctx, query)
@@ -393,6 +398,56 @@ func (s *DatabaseService) RunQuery(id, password, database, query string) (QueryR
 	result.RowCount = int64(len(result.Rows))
 	result.DurationMs = time.Since(started).Milliseconds()
 	return result, nil
+}
+
+func (s *DatabaseService) closeProfilePoolsLocked(id string) {
+	prefix := id + "\x00"
+	for key, pool := range s.pools {
+		if strings.HasPrefix(key, prefix) {
+			_ = pool.db.Close()
+			delete(s.pools, key)
+		}
+	}
+}
+
+func (s *DatabaseService) database(profile ConnectionProfile, password string) (*sql.DB, error) {
+	key := profile.ID + "\x00" + profile.Database
+	fingerprint := sha256.Sum256([]byte(strings.Join([]string{
+		profile.Host, profile.Port, profile.Database, profile.Username, profile.SSLMode, password,
+	}, "\x00")))
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if pool, ok := s.pools[key]; ok && pool.fingerprint == fingerprint {
+		return pool.db, nil
+	}
+	db, err := openDatabase(profile, password)
+	if err != nil {
+		return nil, err
+	}
+	db.SetMaxOpenConns(5)
+	db.SetMaxIdleConns(2)
+	db.SetConnMaxIdleTime(5 * time.Minute)
+	db.SetConnMaxLifetime(30 * time.Minute)
+	if old, ok := s.pools[key]; ok {
+		_ = old.db.Close()
+	}
+	s.pools[key] = databasePool{db: db, fingerprint: fingerprint}
+	return db, nil
+}
+
+// Close releases all cached database pools when the desktop application exits.
+func (s *DatabaseService) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var firstError error
+	for key, pool := range s.pools {
+		if err := pool.db.Close(); err != nil && firstError == nil {
+			firstError = err
+		}
+		delete(s.pools, key)
+	}
+	return firstError
 }
 
 func (s *DatabaseService) profile(id string) (ConnectionProfile, error) {

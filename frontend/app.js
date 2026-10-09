@@ -8,9 +8,9 @@ const databaseSelect = $("#database-select");
 const toast = $("#toast");
 let profiles = [];
 let selectedId = "";
-let connectedId = "";
+const connectedIds = new Set();
 let schemaData = [];
-let availableDatabases = [];
+const availableDatabases = new Map();
 const selectedDatabases = new Map();
 const expandedSchemas = new Set();
 const expandedObjects = new Set();
@@ -36,7 +36,7 @@ function renderProfiles() {
     button.type = "button";
     button.className = `connection-item${profile.id === selectedId ? " selected" : ""}`;
     button.dataset.id = profile.id;
-    button.innerHTML = `<span class="connection-symbol">CR</span><span class="connection-copy"><strong></strong><small></small></span><span class="item-dot${connectedId === profile.id ? " connected" : ""}"></span>`;
+    button.innerHTML = `<span class="connection-symbol">CR</span><span class="connection-copy"><strong></strong><small></small></span><span class="item-dot${connectedIds.has(profile.id) ? " connected" : ""}"></span>`;
     button.querySelector("strong").textContent = profile.name;
     button.querySelector("small").textContent = `${profile.database} · ${profile.host}`;
     list.append(button);
@@ -48,11 +48,11 @@ function renderProfiles() {
   if (profile) passwordInput.value = passwords.get(profile.id) || "";
   $("#connect-button").disabled = !profile;
   $("#run-query").disabled = !profile;
-  $("#refresh-schema").disabled = !profile || connectedId !== profile.id;
+  $("#refresh-schema").disabled = !profile || !connectedIds.has(profile.id);
   $("#schema-filter").disabled = !profile;
-  databaseSelect.disabled = !profile || connectedId !== profile.id;
+  databaseSelect.disabled = !profile || !connectedIds.has(profile.id);
   databaseSelect.replaceChildren();
-  const databases = profile && connectedId === profile.id ? availableDatabases : [];
+  const databases = profile ? (availableDatabases.get(profile.id) || []) : [];
   if (databases.length) {
     for (const name of databases) {
       const option = document.createElement("option");
@@ -68,7 +68,7 @@ function renderProfiles() {
     option.textContent = profile ? "Connect to load databases" : "Select a connection";
     databaseSelect.append(option);
   }
-  const isConnected = Boolean(profile && connectedId === profile.id);
+  const isConnected = Boolean(profile && connectedIds.has(profile.id));
   $("#connection-state").textContent = isConnected ? "● Connected" : "● Disconnected";
   $("#connection-state").classList.toggle("is-connected", isConnected);
   $("#connect-button").textContent = isConnected ? "Reconnect" : "Connect";
@@ -130,12 +130,6 @@ function renderSchemaTree(message = "") {
     tree.append(empty);
     return;
   }
-
-  const databaseRoot = document.createElement("div");
-  databaseRoot.className = "database-root";
-  databaseRoot.innerHTML = '<span class="database-root-icon">▰</span><span class="database-root-name"></span><span class="database-root-caption">DATABASE</span>';
-  databaseRoot.querySelector(".database-root-name").textContent = databaseSelect.value || activeProfile()?.database || "database";
-  tree.append(databaseRoot);
 
   for (const schema of schemaData) {
     const objects = schema.objects.filter((object) => {
@@ -293,15 +287,14 @@ async function refreshProfiles() {
 
 function selectConnection(id) {
   if (selectedId === id) return;
-  if (selectedId !== id) {
-    schemaData = [];
-    expandedSchemas.clear();
-    expandedObjects.clear();
-    renderSchemaTree("Select Connect to load schema metadata.");
-  }
+  schemaData = [];
+  expandedSchemas.clear();
+  expandedObjects.clear();
+  renderSchemaTree("Select Connect to load schema metadata.");
   selectedId = id;
   renderProfiles();
   $("#query-message").textContent = "Ready to query";
+  if (connectedIds.has(id)) refreshSchema();
 }
 
 list.addEventListener("click", (event) => {
@@ -323,7 +316,8 @@ $(".modal-background").addEventListener("click", closeModal);
 
 passwordInput.addEventListener("input", () => {
   if (selectedId) passwords.set(selectedId, passwordInput.value);
-  connectedId = "";
+  connectedIds.delete(selectedId);
+  availableDatabases.delete(selectedId);
   renderProfiles();
 });
 
@@ -371,8 +365,8 @@ async function connectSelected() {
   try {
     const serverVersion = await DatabaseService.TestConnection(selectedId, password);
     const databases = await DatabaseService.Databases(selectedId, password);
-    connectedId = selectedId;
-    availableDatabases = databases;
+    connectedIds.add(selectedId);
+    availableDatabases.set(selectedId, databases);
     const current = selectedDatabases.get(selectedId) || activeProfile()?.database;
     selectedDatabases.set(selectedId, databases.includes(current) ? current : (databases[0] || activeProfile()?.database || ""));
     renderProfiles();
@@ -380,8 +374,8 @@ async function connectSelected() {
     $("#query-message").textContent = "Connected successfully";
     showToast(`Connected to CockroachDB · ${serverVersion.split(" ").slice(0, 2).join(" ")}`);
   } catch (error) {
-    connectedId = "";
-    availableDatabases = [];
+    connectedIds.delete(selectedId);
+    availableDatabases.delete(selectedId);
     renderProfiles();
     $("#query-message").textContent = "Connection failed";
     showToast(String(error), true);
@@ -406,7 +400,7 @@ async function executeQuery(query, source = "query") {
   $("#query-message").textContent = source === "query" ? "Running query…" : `Loading ${source}…`;
   try {
     const result = await DatabaseService.RunQuery(selectedId, password, databaseSelect.value, query);
-    connectedId = selectedId;
+    connectedIds.add(selectedId);
     renderResult(result);
     renderProfiles();
     $("#query-message").textContent = source === "query" ? "Query completed" : `Preview: ${source}`;

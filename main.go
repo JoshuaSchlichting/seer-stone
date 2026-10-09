@@ -15,6 +15,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer service.Close()
 
 	app := application.New(application.Options{
 		Name:        "Seer Stone",
