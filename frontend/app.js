@@ -8,6 +8,19 @@ const databaseSelect = $("#database-select");
 const toast = $("#toast");
 const themeSelect = $("#theme-select");
 const paletteSelect = $("#palette-select");
+const toggleConnectionsButton = $("#toggle-connections");
+const connectionSectionBody = $("#connection-section-body");
+let connectionsCollapsed = false;
+try { connectionsCollapsed = localStorage.getItem("seer-stone-connections-collapsed") === "true"; } catch {}
+function setConnectionsCollapsed(collapsed) {
+  connectionsCollapsed = collapsed;
+  connectionSectionBody.hidden = collapsed;
+  toggleConnectionsButton.setAttribute("aria-expanded", String(!collapsed));
+  toggleConnectionsButton.querySelector(".connections-chevron").textContent = collapsed ? "▸" : "▾";
+  try { localStorage.setItem("seer-stone-connections-collapsed", String(collapsed)); } catch {}
+}
+setConnectionsCollapsed(connectionsCollapsed);
+toggleConnectionsButton.addEventListener("click", () => setConnectionsCollapsed(!connectionsCollapsed));
 document.addEventListener("contextmenu", (event) => {
   if (event.target.closest('input, textarea, select, [contenteditable="true"], .results-table-wrap')) return;
   event.preventDefault();

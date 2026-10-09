@@ -18,6 +18,39 @@ body {
   overscroll-behavior-y: contain;
 }
 
+.connections-heading {
+  gap: 6px;
+}
+
+.connections-toggle {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.connections-chevron {
+  width: 10px;
+  color: #a0b7b7;
+  font-size: 12px;
+}
+
+.connections-toggle:hover {
+  color: #d7e7e4;
+}
+
+#connection-section-body[hidden] {
+  display: none;
+}
+
 .schema-browser {
   flex: 1 0 190px;
   min-height: 190px;
@@ -46,4 +79,169 @@ body {
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior-y: contain;
+}
+
+/* WebView zoom reduces the CSS viewport. Reflow controls instead of clipping them. */
+html,
+body {
+  min-width: 0;
+}
+
+@media (max-width: 1100px) {
+  .topbar {
+    height: auto;
+    min-height: 61px;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    gap: 10px 18px;
+    padding: 12px 24px;
+  }
+
+  .topbar-actions {
+    flex-wrap: wrap;
+    gap: 10px 14px;
+  }
+}
+
+@media (max-width: 800px) {
+  .sidebar {
+    width: 190px;
+    flex-basis: 190px;
+  }
+
+  .workspace {
+    padding: 25px 20px 40px;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    padding: 12px 20px;
+  }
+}
+
+@media (max-width: 700px) {
+  .sidebar {
+    width: 170px;
+    flex-basis: 170px;
+    padding: 18px 11px 12px;
+  }
+
+  .brand {
+    padding-bottom: 24px;
+  }
+
+  .topbar {
+    padding: 12px 15px;
+  }
+
+  .topbar-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .workspace {
+    padding: 22px 15px 35px;
+  }
+
+  .workspace-title {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .session-bar {
+    align-items: flex-start;
+    gap: 12px;
+    flex-direction: column;
+  }
+
+  .password-field {
+    width: 100%;
+  }
+
+  .password-field .input {
+    min-width: 0;
+    flex: 1;
+  }
+}
+
+@media (max-width: 520px) {
+  .sidebar {
+    width: 150px;
+    flex-basis: 150px;
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  .brand {
+    gap: 8px;
+    padding-right: 2px;
+    padding-left: 2px;
+  }
+
+  .brand-mark {
+    width: 30px;
+    height: 30px;
+    flex: 0 0 30px;
+  }
+
+  .sidebar-label {
+    padding-bottom: 16px;
+  }
+
+  .connections-heading {
+    padding-right: 3px;
+    padding-left: 3px;
+  }
+
+  .topbar-actions {
+    min-width: 0;
+    gap: 8px 10px;
+  }
+
+  .breadcrumb {
+    min-width: 0;
+  }
+
+  .breadcrumb strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .session-target,
+  .session-target > div,
+  .workspace-title > div {
+    min-width: 0;
+  }
+
+  .session-target strong {
+    overflow-wrap: anywhere;
+  }
+
+  .theme-control > span:first-child {
+    display: none;
+  }
+
+  .workspace {
+    padding-right: 11px;
+    padding-left: 11px;
+  }
+
+  .editor-tools {
+    gap: 7px;
+    padding-right: 8px;
+  }
+
+  .editor-tools span:last-child,
+  .tool-divider {
+    display: none;
+  }
+
+  .editor-wrap textarea {
+    min-width: 0;
+    padding-right: 9px;
+    padding-left: 10px;
+  }
 }

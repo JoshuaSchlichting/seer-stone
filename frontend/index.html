@@ -25,9 +25,11 @@
     <aside class="sidebar">
       <div class="brand"><div class="brand-mark">S</div><div><strong>seer stone</strong><small>SQL WORKSPACE</small></div></div>
       <div class="sidebar-label">WORKSPACE</div>
-      <div class="connections-heading"><span>CONNECTIONS</span><button id="add-connection" class="icon-button" title="Add connection" aria-label="Add connection">＋</button></div>
-      <div id="connection-list" class="connection-list"></div>
-      <div id="empty-connections" class="empty-connections">No connections yet.<br>Add a database to get started.</div>
+      <div class="connections-heading"><button id="toggle-connections" class="connections-toggle" type="button" aria-expanded="true" aria-controls="connection-section-body"><span class="connections-chevron" aria-hidden="true">▾</span><span>CONNECTIONS</span></button><button id="add-connection" class="icon-button" title="Add connection" aria-label="Add connection">＋</button></div>
+      <div id="connection-section-body">
+        <div id="connection-list" class="connection-list"></div>
+        <div id="empty-connections" class="empty-connections">No connections yet.<br>Add a database to get started.</div>
+      </div>
       <section class="schema-browser">
         <div class="schema-heading"><span>DATABASE OBJECTS</span><div class="schema-heading-actions"><button id="toggle-schemas" class="schema-toggle-all" type="button" disabled>Collapse all</button><button id="refresh-schema" class="icon-button refresh-button" title="Refresh schema" aria-label="Refresh schema" disabled>↻</button></div></div>
         <input id="schema-filter" class="input is-small schema-filter" placeholder="Filter tables and views…" aria-label="Filter database objects" disabled>
