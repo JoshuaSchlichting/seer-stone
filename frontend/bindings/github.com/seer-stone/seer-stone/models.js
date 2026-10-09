@@ -26,6 +26,13 @@ export class ConnectionProfile {
              */
             this["name"] = "";
         }
+        if (!("engine" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["engine"] = "";
+        }
         if (!("host" in $$source)) {
             /**
              * @member
@@ -46,6 +53,27 @@ export class ConnectionProfile {
              * @type {string}
              */
             this["database"] = "";
+        }
+        if (!("schema" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["schema"] = "";
+        }
+        if (!("warehouse" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["warehouse"] = "";
+        }
+        if (!("role" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["role"] = "";
         }
         if (!("username" in $$source)) {
             /**

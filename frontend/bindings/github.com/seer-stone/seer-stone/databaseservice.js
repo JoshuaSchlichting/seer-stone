@@ -11,6 +11,14 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
+ * Close releases all cached database pools when the desktop application exits.
+ * @returns {$CancellablePromise<void>}
+ */
+export function Close() {
+    return $Call.ByID(652368824);
+}
+
+/**
  * @param {string} id
  * @param {string} password
  * @returns {$CancellablePromise<string[]>}

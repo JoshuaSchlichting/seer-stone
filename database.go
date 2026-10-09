@@ -18,16 +18,21 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/snowflakedb/gosnowflake"
 )
 
 type ConnectionProfile struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Host     string `json:"host"`
-	Port     string `json:"port"`
-	Database string `json:"database"`
-	Username string `json:"username"`
-	SSLMode  string `json:"sslMode"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Engine    string `json:"engine"`
+	Host      string `json:"host"`
+	Port      string `json:"port"`
+	Database  string `json:"database"`
+	Schema    string `json:"schema"`
+	Warehouse string `json:"warehouse"`
+	Role      string `json:"role"`
+	Username  string `json:"username"`
+	SSLMode   string `json:"sslMode"`
 }
 
 type QueryResult struct {
@@ -118,18 +123,32 @@ func (s *DatabaseService) LocalPassword(id string) string {
 
 func (s *DatabaseService) SaveProfile(profile ConnectionProfile) (ConnectionProfile, error) {
 	profile.Name = strings.TrimSpace(profile.Name)
+	profile.Engine = strings.ToLower(strings.TrimSpace(profile.Engine))
+	if profile.Engine == "" {
+		profile.Engine = "cockroach"
+	}
+	if profile.Engine != "cockroach" && profile.Engine != "postgres" && profile.Engine != "snowflake" {
+		return ConnectionProfile{}, errors.New("engine must be cockroach, postgres, or snowflake")
+	}
 	profile.Host = strings.TrimSpace(profile.Host)
+	profile.Schema = strings.TrimSpace(profile.Schema)
+	profile.Warehouse = strings.TrimSpace(profile.Warehouse)
+	profile.Role = strings.TrimSpace(profile.Role)
 	profile.Database = strings.TrimSpace(profile.Database)
 	profile.Username = strings.TrimSpace(profile.Username)
 	profile.Port = strings.TrimSpace(profile.Port)
 	profile.SSLMode = strings.TrimSpace(profile.SSLMode)
-	if profile.Name == "" || profile.Host == "" || profile.Database == "" || profile.Username == "" {
-		return ConnectionProfile{}, errors.New("name, host, database, and username are required")
+	if profile.Name == "" || profile.Host == "" || profile.Username == "" || (profile.Engine != "snowflake" && profile.Database == "") {
+		return ConnectionProfile{}, errors.New("name, host/account, username, and database (except for Snowflake) are required")
 	}
 	if profile.Port == "" {
-		profile.Port = "26257"
+		if profile.Engine == "postgres" {
+			profile.Port = "5432"
+		} else if profile.Engine == "cockroach" {
+			profile.Port = "26257"
+		}
 	}
-	if profile.SSLMode == "" {
+	if profile.SSLMode == "" && profile.Engine != "snowflake" {
 		profile.SSLMode = "verify-full"
 	}
 	if profile.ID == "" {
@@ -208,7 +227,11 @@ func (s *DatabaseService) TestConnection(id, password string) (string, error) {
 		return "", fmt.Errorf("connection failed: %w", err)
 	}
 	var version string
-	if err := db.QueryRowContext(ctx, "SELECT version()").Scan(&version); err != nil {
+	versionQuery := "SELECT version()"
+	if profile.Engine == "snowflake" {
+		versionQuery = "SELECT CURRENT_VERSION()"
+	}
+	if err := db.QueryRowContext(ctx, versionQuery).Scan(&version); err != nil {
 		return "", fmt.Errorf("connected, but could not read server version: %w", err)
 	}
 	return version, nil
@@ -225,7 +248,11 @@ func (s *DatabaseService) Databases(id, password string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	rows, err := db.QueryContext(ctx, "SHOW DATABASES")
+	databaseQuery := "SHOW DATABASES"
+	if profile.Engine == "postgres" {
+		databaseQuery = "SELECT datname FROM pg_database WHERE datistemplate = false AND has_database_privilege(datname, 'CONNECT') ORDER BY datname"
+	}
+	rows, err := db.QueryContext(ctx, databaseQuery)
 	if err != nil {
 		return nil, fmt.Errorf("list databases: %w", err)
 	}
@@ -237,6 +264,13 @@ func (s *DatabaseService) Databases(id, password string) ([]string, error) {
 	if len(columns) == 0 {
 		return []string{}, nil
 	}
+	nameIndex := 0
+	for i, column := range columns {
+		if strings.EqualFold(column, "name") || strings.EqualFold(column, "database_name") || strings.EqualFold(column, "datname") {
+			nameIndex = i
+			break
+		}
+	}
 	databases := make([]string, 0)
 	for rows.Next() {
 		values := make([]any, len(columns))
@@ -247,7 +281,7 @@ func (s *DatabaseService) Databases(id, password string) ([]string, error) {
 		if err := rows.Scan(destinations...); err != nil {
 			return nil, fmt.Errorf("read database list: %w", err)
 		}
-		name := values[0]
+		name := values[nameIndex]
 		switch value := name.(type) {
 		case string:
 			databases = append(databases, value)
@@ -278,7 +312,7 @@ func (s *DatabaseService) ExploreSchema(id, password, database string) ([]Databa
 	rows, err := db.QueryContext(ctx, `
 		SELECT schema_name
 		FROM information_schema.schemata
-		WHERE schema_name NOT IN ('information_schema', 'pg_catalog', 'crdb_internal')
+		WHERE UPPER(schema_name) NOT IN ('INFORMATION_SCHEMA', 'PG_CATALOG', 'CRDB_INTERNAL')
 		ORDER BY schema_name`)
 	if err != nil {
 		return nil, fmt.Errorf("list schemas: %w", err)
@@ -306,7 +340,7 @@ func (s *DatabaseService) ExploreSchema(id, password, database string) ([]Databa
 		FROM information_schema.tables AS t
 		LEFT JOIN information_schema.columns AS c
 		  ON c.table_schema = t.table_schema AND c.table_name = t.table_name
-		WHERE t.table_schema NOT IN ('information_schema', 'pg_catalog', 'crdb_internal')
+		WHERE UPPER(t.table_schema) NOT IN ('INFORMATION_SCHEMA', 'PG_CATALOG', 'CRDB_INTERNAL')
 		ORDER BY t.table_schema, t.table_name, c.ordinal_position`)
 	if err != nil {
 		return nil, fmt.Errorf("list tables and columns: %w", err)
@@ -413,7 +447,7 @@ func (s *DatabaseService) closeProfilePoolsLocked(id string) {
 func (s *DatabaseService) database(profile ConnectionProfile, password string) (*sql.DB, error) {
 	key := profile.ID + "\x00" + profile.Database
 	fingerprint := sha256.Sum256([]byte(strings.Join([]string{
-		profile.Host, profile.Port, profile.Database, profile.Username, profile.SSLMode, password,
+		profile.Engine, profile.Host, profile.Port, profile.Database, profile.Schema, profile.Warehouse, profile.Role, profile.Username, profile.SSLMode, password,
 	}, "\x00")))
 
 	s.mu.Lock()
@@ -521,6 +555,18 @@ func (s *DatabaseService) loadLocalConnections(path string) error {
 }
 
 func openDatabase(profile ConnectionProfile, password string) (*sql.DB, error) {
+	if profile.Engine == "snowflake" {
+		config := &gosnowflake.Config{
+			Account: profile.Host, User: profile.Username, Password: password,
+			Database: profile.Database, Schema: profile.Schema,
+			Warehouse: profile.Warehouse, Role: profile.Role,
+		}
+		dsn, err := gosnowflake.DSN(config)
+		if err != nil {
+			return nil, fmt.Errorf("invalid Snowflake settings: %w", err)
+		}
+		return sql.Open("snowflake", dsn)
+	}
 	port := profile.Port
 	if port == "" {
 		port = "26257"

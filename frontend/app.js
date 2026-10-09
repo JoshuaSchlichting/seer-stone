@@ -28,6 +28,27 @@ function activeProfile() {
   return profiles.find((profile) => profile.id === selectedId);
 }
 
+function engineInfo(engine) {
+  switch (engine || "cockroach") {
+    case "postgres": return { name: "PostgreSQL", icon: "PG" };
+    case "snowflake": return { name: "Snowflake", icon: "SF" };
+    default: return { name: "CockroachDB", icon: "CR" };
+  }
+}
+
+function updateEngineFields() {
+  const engine = $("#profile-engine").value;
+  const snowflake = engine === "snowflake";
+  $("#snowflake-fields").classList.toggle("is-hidden", !snowflake);
+  $("#profile-port-field").classList.toggle("is-hidden", snowflake);
+  $("#profile-ssl-field").classList.toggle("is-hidden", snowflake);
+  $("#profile-database").required = !snowflake;
+  $("#profile-host-label").textContent = snowflake ? "Account identifier" : "Host";
+  $("#profile-host").placeholder = snowflake ? "organization-account.region" : (engine === "postgres" ? "db.example.com" : "cluster-name.gcp-us-east1.cockroachlabs.cloud");
+  $("#profile-database").value = snowflake ? "" : ($("#profile-database").value || "defaultdb");
+  $("#profile-port").value = engine === "postgres" ? "5432" : "26257";
+}
+
 function renderProfiles() {
   list.replaceChildren();
   $("#empty-connections").classList.toggle("is-hidden", profiles.length > 0);
@@ -36,14 +57,17 @@ function renderProfiles() {
     button.type = "button";
     button.className = `connection-item${profile.id === selectedId ? " selected" : ""}`;
     button.dataset.id = profile.id;
-    button.innerHTML = `<span class="connection-symbol">CR</span><span class="connection-copy"><strong></strong><small></small></span><span class="item-dot${connectedIds.has(profile.id) ? " connected" : ""}"></span>`;
+    const engine = engineInfo(profile.engine);
+    button.innerHTML = `<span class="connection-symbol">${engine.icon}</span><span class="connection-copy"><strong></strong><small></small></span><span class="item-dot${connectedIds.has(profile.id) ? " connected" : ""}"></span>`;
     button.querySelector("strong").textContent = profile.name;
-    button.querySelector("small").textContent = `${profile.database} · ${profile.host}`;
+    button.querySelector("small").textContent = `${profile.database || "Select database"} · ${profile.host}`;
     list.append(button);
   }
   const profile = activeProfile();
   $("#active-name").textContent = profile?.name || "Select a cluster";
-  $("#target-label").textContent = profile ? `${profile.username}@${profile.host}:${profile.port}/${profile.database}` : "Choose a cluster from the sidebar";
+  const engine = engineInfo(profile?.engine);
+  $("#target-label").textContent = profile ? `${engine.name} · ${profile.username}@${profile.host}${profile.port ? `:${profile.port}` : ""}${profile.database ? `/${profile.database}` : ""}` : "Choose a connection from the sidebar";
+  $("#engine-badge").innerHTML = profile ? `<span>${engine.icon}</span> ${engine.name}` : '<span>SQL</span> SQL database';
   passwordInput.disabled = !profile;
   if (profile) passwordInput.value = passwords.get(profile.id) || "";
   $("#connect-button").disabled = !profile;
@@ -77,9 +101,14 @@ function renderProfiles() {
 function openModal() {
   $("#connection-form").reset();
   $("#profile-id").value = "";
+  $("#profile-engine").value = "cockroach";
   $("#profile-port").value = "26257";
   $("#profile-database").value = "defaultdb";
+  $("#profile-warehouse").value = "";
+  $("#profile-schema").value = "";
+  $("#profile-role").value = "";
   $("#profile-ssl").value = "verify-full";
+  updateEngineFields();
   $("#profile-error").textContent = "";
   modal.classList.add("is-active");
   $("#profile-name").focus();
@@ -240,7 +269,6 @@ async function refreshSchema() {
     schemaData = await DatabaseService.ExploreSchema(profile.id, password, databaseSelect.value);
     expandedSchemas.clear();
     expandedObjects.clear();
-    for (const schema of schemaData) expandedSchemas.add(schema.name);
     renderSchemaTree();
     const objectCount = schemaData.reduce((count, schema) => count + schema.objects.length, 0);
     showToast(`Schema loaded · ${schemaData.length} schemas, ${objectCount} tables and views`);
@@ -309,6 +337,7 @@ list.addEventListener("dblclick", (event) => {
   connectSelected();
 });
 
+$("#profile-engine").addEventListener("change", updateEngineFields);
 $("#add-connection").addEventListener("click", openModal);
 $("#close-modal").addEventListener("click", closeModal);
 $("#cancel-modal").addEventListener("click", closeModal);
@@ -330,9 +359,13 @@ $("#connection-form").addEventListener("submit", async (event) => {
     const saved = await DatabaseService.SaveProfile({
       id: $("#profile-id").value,
       name: $("#profile-name").value,
+      engine: $("#profile-engine").value,
       host: $("#profile-host").value,
       port: $("#profile-port").value,
       database: $("#profile-database").value,
+      schema: $("#profile-schema").value,
+      warehouse: $("#profile-warehouse").value,
+      role: $("#profile-role").value,
       username: $("#profile-username").value,
       sslMode: $("#profile-ssl").value,
     });
@@ -372,7 +405,7 @@ async function connectSelected() {
     renderProfiles();
     await refreshSchema();
     $("#query-message").textContent = "Connected successfully";
-    showToast(`Connected to CockroachDB · ${serverVersion.split(" ").slice(0, 2).join(" ")}`);
+    showToast(`Connected to ${engineInfo(activeProfile()?.engine).name} · ${serverVersion.split(" ").slice(0, 2).join(" ")}`);
   } catch (error) {
     connectedIds.delete(selectedId);
     availableDatabases.delete(selectedId);
