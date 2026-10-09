@@ -6,6 +6,39 @@ const modal = $("#connection-modal");
 const passwordInput = $("#db-password");
 const databaseSelect = $("#database-select");
 const toast = $("#toast");
+const themeSelect = $("#theme-select");
+const paletteSelect = $("#palette-select");
+const systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
+function applyTheme(preference, persist = false) {
+  const dark = preference === "dark" || (preference === "system" && systemTheme.matches);
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  themeSelect.value = preference;
+  if (persist) {
+    try { localStorage.setItem("seer-stone-theme", preference); } catch {}
+  }
+}
+let savedTheme = "system";
+try {
+  const storedTheme = localStorage.getItem("seer-stone-theme");
+  if (["system", "light", "dark"].includes(storedTheme)) savedTheme = storedTheme;
+} catch {}
+applyTheme(savedTheme);
+themeSelect.addEventListener("change", () => applyTheme(themeSelect.value, true));
+systemTheme.addEventListener("change", () => {
+  if (themeSelect.value === "system") applyTheme("system");
+});
+const palettes = ["teal", "ocean", "violet", "ember", "rose", "forest"];
+let savedPalette = "teal";
+try {
+  const storedPalette = localStorage.getItem("seer-stone-palette");
+  if (palettes.includes(storedPalette)) savedPalette = storedPalette;
+} catch {}
+document.documentElement.dataset.palette = savedPalette;
+paletteSelect.value = savedPalette;
+paletteSelect.addEventListener("change", () => {
+  document.documentElement.dataset.palette = paletteSelect.value;
+  try { localStorage.setItem("seer-stone-palette", paletteSelect.value); } catch {}
+});
 let profiles = [];
 let selectedId = "";
 const connectedIds = new Set();

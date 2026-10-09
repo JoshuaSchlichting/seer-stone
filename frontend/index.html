@@ -4,9 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Seer Stone — SQL workspace</title>
+  <script>
+    try {
+      const theme = localStorage.getItem("seer-stone-theme") || "system";
+      const palette = localStorage.getItem("seer-stone-palette") || "teal";
+      document.documentElement.dataset.theme = theme === "dark" || (theme === "system" && matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+      document.documentElement.dataset.palette = ["teal", "ocean", "violet", "ember", "rose", "forest"].includes(palette) ? palette : "teal";
+    } catch {}
+  </script>
   <link rel="stylesheet" href="/bulma.min.css">
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/schema.css">
+  <link rel="stylesheet" href="/theme.css">
 </head>
 <body>
   <div class="app-shell">
@@ -28,7 +37,7 @@
     <main class="main-panel">
       <header class="topbar">
         <div class="breadcrumb"><span>Connections</span><b>/</b><strong id="active-name">Select a cluster</strong></div>
-        <div class="topbar-actions"><span id="connection-state" class="connection-state">● Disconnected</span><button id="connect-button" class="button is-small connect-button" disabled>Connect</button></div>
+        <div class="topbar-actions"><label class="theme-control"><span>Appearance</span><span class="select is-small"><select id="theme-select" aria-label="Appearance"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></span></label><label class="theme-control palette-control"><span>Palette</span><span class="select is-small"><select id="palette-select" aria-label="Color palette"><option value="teal">Teal</option><option value="ocean">Ocean</option><option value="violet">Violet</option><option value="ember">Ember</option><option value="rose">Rose</option><option value="forest">Forest</option></select></span></label><span id="connection-state" class="connection-state">● Disconnected</span><button id="connect-button" class="button is-small connect-button" disabled>Connect</button></div>
       </header>
 
       <section class="workspace">
