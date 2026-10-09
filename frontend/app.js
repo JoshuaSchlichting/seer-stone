@@ -5,10 +5,58 @@ const list = $("#connection-list");
 const modal = $("#connection-modal");
 const passwordInput = $("#db-password");
 const passwordModal = $("#password-modal");
+const queryConfirmationModal = $("#query-confirmation-modal");
+let pendingConfirmedQuery = "";
 const databaseSelect = $("#database-select");
 const toast = $("#toast");
 const themeSelect = $("#theme-select");
 const paletteSelect = $("#palette-select");
+const workspaceElement = $(".workspace");
+const queryPanel = $(".editor-panel");
+const workspaceSplitter = $("#workspace-splitter");
+const workspaceSplitStorageKey = "seer-stone-workspace-split";
+let queryPaneRatio = 45;
+try {
+  const storedRatio = Number(localStorage.getItem(workspaceSplitStorageKey));
+  if (Number.isFinite(storedRatio) && storedRatio >= 20 && storedRatio <= 80) queryPaneRatio = storedRatio;
+} catch {}
+function applyWorkspaceSplit(ratio, persist = true) {
+  queryPaneRatio = Math.min(80, Math.max(20, ratio));
+  workspaceElement.style.gridTemplateRows = `minmax(140px, ${queryPaneRatio}fr) 10px minmax(140px, ${100 - queryPaneRatio}fr)`;
+  workspaceSplitter.setAttribute("aria-valuenow", String(Math.round(queryPaneRatio)));
+  if (persist) {
+    try { localStorage.setItem(workspaceSplitStorageKey, String(queryPaneRatio)); } catch {}
+  }
+}
+applyWorkspaceSplit(queryPaneRatio, false);
+workspaceSplitter.addEventListener("pointerdown", (event) => {
+  if (event.button !== 0) return;
+  event.preventDefault();
+  const paneTop = queryPanel.getBoundingClientRect().top;
+  const workspaceRect = workspaceElement.getBoundingClientRect();
+  const paddingBottom = parseFloat(getComputedStyle(workspaceElement).paddingBottom) || 0;
+  const availableHeight = workspaceRect.bottom - paddingBottom - workspaceSplitter.offsetHeight - paneTop;
+  const move = (moveEvent) => {
+    const desiredHeight = moveEvent.clientY - paneTop;
+    const maxHeight = Math.max(140, availableHeight - 140);
+    const height = Math.min(maxHeight, Math.max(140, desiredHeight));
+    applyWorkspaceSplit((height / availableHeight) * 100, false);
+  };
+  const stop = () => {
+    document.removeEventListener("pointermove", move);
+    document.removeEventListener("pointerup", stop);
+    document.removeEventListener("pointercancel", stop);
+    try { localStorage.setItem(workspaceSplitStorageKey, String(queryPaneRatio)); } catch {}
+  };
+  document.addEventListener("pointermove", move);
+  document.addEventListener("pointerup", stop, { once: true });
+  document.addEventListener("pointercancel", stop, { once: true });
+});
+workspaceSplitter.addEventListener("keydown", (event) => {
+  if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+  event.preventDefault();
+  applyWorkspaceSplit(queryPaneRatio + (event.key === "ArrowDown" ? 2 : -2));
+});
 const connectionContextMenu = $("#connection-context-menu");
 let contextProfileId = "";
 const toggleConnectionsButton = $("#toggle-connections");
@@ -80,10 +128,48 @@ paletteSelect.addEventListener("change", () => {
 });
 let profiles = [];
 let selectedId = "";
+const connectionAccentValues = {
+  red: "#ef5350",
+  orange: "#fb8c00",
+  yellow: "#d4aa00",
+  green: "#4caf50",
+  teal: "#26a69a",
+  blue: "#42a5f5",
+  purple: "#ab70d6",
+};
+let connectionColors = {};
+try {
+  const storedColors = JSON.parse(localStorage.getItem("seer-stone-connection-colors") || "{}");
+  if (storedColors && typeof storedColors === "object" && !Array.isArray(storedColors)) {
+    connectionColors = Object.fromEntries(Object.entries(storedColors).filter(([, color]) => Object.hasOwn(connectionAccentValues, color)));
+  }
+} catch {}
+function saveConnectionColors() {
+  try { localStorage.setItem("seer-stone-connection-colors", JSON.stringify(connectionColors)); } catch {}
+}
+let queryConfirmationPreferences = {};
+try {
+  const storedPreferences = JSON.parse(localStorage.getItem("seer-stone-query-confirmations") || "{}");
+  if (storedPreferences && typeof storedPreferences === "object" && !Array.isArray(storedPreferences)) queryConfirmationPreferences = storedPreferences;
+} catch {}
+function saveQueryConfirmationPreferences() {
+  try { localStorage.setItem("seer-stone-query-confirmations", JSON.stringify(queryConfirmationPreferences)); } catch {}
+}
 const connectedIds = new Set();
 let schemaData = [];
 const availableDatabases = new Map();
 const selectedDatabases = new Map();
+try {
+  const storedDatabases = JSON.parse(localStorage.getItem("seer-stone-selected-databases") || "{}");
+  if (storedDatabases && typeof storedDatabases === "object" && !Array.isArray(storedDatabases)) {
+    for (const [id, database] of Object.entries(storedDatabases)) {
+      if (typeof database === "string") selectedDatabases.set(id, database);
+    }
+  }
+} catch {}
+function persistSelectedDatabases() {
+  try { localStorage.setItem("seer-stone-selected-databases", JSON.stringify(Object.fromEntries(selectedDatabases))); } catch {}
+}
 const expandedSchemas = new Set();
 const expandedObjects = new Set();
 const passwords = new Map();
@@ -330,15 +416,32 @@ function renderProfiles() {
     button.title = "Right-click to edit";
     button.setAttribute("aria-haspopup", "menu");
     const engine = engineInfo(profile.engine);
+    const accent = connectionAccentValues[connectionColors[profile.id]];
+    if (accent) button.style.setProperty("--connection-accent", accent);
     button.innerHTML = `<span class="connection-symbol">${engine.icon}</span><span class="connection-copy"><strong></strong><small></small></span><span class="item-dot${connectedIds.has(profile.id) ? " connected" : ""}"></span>`;
     button.querySelector("strong").textContent = profile.name;
     button.querySelector("small").textContent = `${profile.database || "Select database"} · ${profile.host}`;
     list.append(button);
   }
   const profile = activeProfile();
+  const workspaceAccent = connectionAccentValues[connectionColors[profile?.id]];
+  const connectButton = $("#connect-button");
+  connectButton.classList.toggle("has-connection-accent", Boolean(workspaceAccent));
+  if (workspaceAccent) {
+    connectButton.style.setProperty("--connection-accent", workspaceAccent);
+    connectButton.style.backgroundColor = workspaceAccent;
+    connectButton.style.borderColor = workspaceAccent;
+    connectButton.style.color = "#fff";
+  } else {
+    connectButton.style.removeProperty("--connection-accent");
+    connectButton.style.removeProperty("background-color");
+    connectButton.style.removeProperty("border-color");
+    connectButton.style.removeProperty("color");
+  }
+  workspaceElement.classList.toggle("has-connection-accent", Boolean(workspaceAccent));
+  if (workspaceAccent) workspaceElement.style.setProperty("--workspace-accent", workspaceAccent);
+  else workspaceElement.style.removeProperty("--workspace-accent");
   $("#active-name").textContent = profile?.name || "Select a cluster";
-  const engine = engineInfo(profile?.engine);
-  $("#engine-badge").innerHTML = profile ? `<span>${engine.icon}</span> ${engine.name}` : '<span>SQL</span> SQL database';
   passwordInput.disabled = !profile;
   if (profile) passwordInput.value = passwords.get(profile.id) || "";
   $("#connect-button").disabled = !profile;
@@ -364,8 +467,9 @@ function renderProfiles() {
     databaseSelect.append(option);
   }
   const isConnected = Boolean(profile && connectedIds.has(profile.id));
-  $("#connection-state").textContent = isConnected ? "● Connected" : "● Disconnected";
+  $("#connection-state-label").textContent = isConnected ? "Connected" : "Disconnected";
   $("#connection-state").classList.toggle("is-connected", isConnected);
+  $("#connection-state-light").classList.toggle("connected", isConnected);
   $("#connect-button").textContent = isConnected ? "Reconnect" : "Connect";
 }
 
@@ -378,6 +482,8 @@ function openModal(profile = null) {
   hideConnectionContextMenu();
   $("#connection-form").reset();
   $("#profile-id").value = profile?.id || "";
+  $("#profile-color").value = connectionColors[profile?.id] || "";
+  $("#confirm-dangerous-queries").checked = profile ? queryConfirmationPreferences[profile.id] !== false : true;
   $("#profile-engine").value = profile?.engine || "cockroach";
   $("#profile-port").value = profile?.port || "26257";
   $("#profile-database").value = profile?.database || "defaultdb";
@@ -443,11 +549,135 @@ function renderResult(result) {
   if (!result.columns?.length) {
     wrap.innerHTML = `<div class="non-tabular-result">Statement completed successfully.</div>`;
   } else {
-    const header = result.columns.map((column) => `<th>${escapeHTML(column)}</th>`).join("");
+    const header = result.columns.map((column, index) => `<th title="${escapeHTML(column)}">${escapeHTML(column)}<div class="column-resize-handle" role="separator" aria-orientation="vertical" aria-label="Resize ${escapeHTML(column)} column" tabindex="0" data-column="${index}"></div></th>`).join("");
     const body = result.rows.map((row) => `<tr>${row.map((value) => `<td>${formatCell(value)}</td>`).join("")}</tr>`).join("");
-    wrap.innerHTML = `<table><thead><tr>${header}</tr></thead><tbody>${body || `<tr><td colspan="${result.columns.length}" class="no-rows">No rows returned</td></tr>`}</tbody></table>`;
+    const cols = result.columns.map(() => "<col>").join("");
+    wrap.innerHTML = `<table><colgroup>${cols}</colgroup><thead><tr>${header}</tr></thead><tbody>${body || `<tr><td colspan="${result.columns.length}" class="no-rows">No rows returned</td></tr>`}</tbody></table>`;
+    const table = wrap.querySelector("table");
+    sizeResultColumns(table);
+    enableResultCellSelection(table);
   }
   $("#result-meta").textContent = `${result.rowCount} row${result.rowCount === 1 ? "" : "s"} · ${result.durationMs} ms`;
+}
+
+function enableResultCellSelection(table) {
+  table.tabIndex = 0;
+  let anchor = null;
+  let dragging = false;
+
+  const dataCellAt = (target) => {
+    const cell = target?.closest?.("tbody td");
+    return cell && !cell.classList.contains("no-rows") ? cell : null;
+  };
+  const selectRange = (focus) => {
+    const startRow = anchor.parentElement.rowIndex;
+    const startColumn = anchor.cellIndex;
+    const endRow = focus.parentElement.rowIndex;
+    const endColumn = focus.cellIndex;
+    const minRow = Math.min(startRow, endRow);
+    const maxRow = Math.max(startRow, endRow);
+    const minColumn = Math.min(startColumn, endColumn);
+    const maxColumn = Math.max(startColumn, endColumn);
+    for (const row of table.tBodies[0].rows) {
+      for (const cell of row.cells) {
+        cell.classList.toggle("cell-selected", row.rowIndex >= minRow && row.rowIndex <= maxRow && cell.cellIndex >= minColumn && cell.cellIndex <= maxColumn);
+      }
+    }
+  };
+  const stopDragging = () => {
+    dragging = false;
+    document.removeEventListener("pointermove", moveSelection);
+    document.removeEventListener("pointerup", stopDragging);
+    document.removeEventListener("pointercancel", stopDragging);
+  };
+  const moveSelection = (event) => {
+    if (!dragging) return;
+    const cell = dataCellAt(document.elementFromPoint(event.clientX, event.clientY));
+    if (cell && cell.closest("table") === table) selectRange(cell);
+  };
+
+  table.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    const cell = dataCellAt(event.target);
+    if (!cell || cell.closest("table") !== table) return;
+    anchor = cell;
+    dragging = true;
+    table.focus({ preventScroll: true });
+    event.preventDefault();
+    selectRange(cell);
+    document.addEventListener("pointermove", moveSelection);
+    document.addEventListener("pointerup", stopDragging, { once: true });
+    document.addEventListener("pointercancel", stopDragging, { once: true });
+  });
+
+  table.addEventListener("copy", (event) => {
+    const selected = [...table.querySelectorAll("tbody td.cell-selected")];
+    if (!selected.length || !event.clipboardData) return;
+    const rows = new Map();
+    for (const cell of selected) {
+      const rowIndex = cell.parentElement.rowIndex;
+      if (!rows.has(rowIndex)) rows.set(rowIndex, []);
+      rows.get(rowIndex)[cell.cellIndex] = cell.textContent.trim();
+    }
+    const rowIndexes = [...rows.keys()].sort((a, b) => a - b);
+    const columns = selected.map((cell) => cell.cellIndex);
+    const firstColumn = Math.min(...columns);
+    const lastColumn = Math.max(...columns);
+    event.clipboardData.setData("text/plain", rowIndexes.map((rowIndex) => {
+      const cells = rows.get(rowIndex);
+      return Array.from({ length: lastColumn - firstColumn + 1 }, (_, index) => cells[firstColumn + index] || "").join("\t");
+    }).join("\n"));
+    event.preventDefault();
+  });
+}
+
+function sizeResultColumns(table) {
+  const columns = [...table.querySelectorAll("col")];
+  const headers = [...table.querySelectorAll("thead th")];
+  const rows = [...table.querySelectorAll("tbody tr")];
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  context.font = getComputedStyle(table).font;
+  const widths = columns.map((_, index) => {
+    let width = context.measureText(headers[index].textContent.trim()).width + 38;
+    for (const row of rows) {
+      const cell = row.cells[index];
+      if (!cell) continue;
+      const text = cell.textContent.trim();
+      cell.title = text;
+      width = Math.max(width, context.measureText(text).width + 28);
+    }
+    return Math.ceil(width);
+  });
+  const applyWidth = (index, width) => {
+    columns[index].style.width = `${width}px`;
+    table.style.width = `${columns.reduce((sum, column) => sum + (parseFloat(column.style.width) || 0), 0)}px`;
+  };
+  widths.forEach((width, index) => applyWidth(index, width));
+  table.style.minWidth = "100%";
+
+  for (const handle of table.querySelectorAll(".column-resize-handle")) {
+    const index = Number(handle.dataset.column);
+    handle.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      const startX = event.clientX;
+      const startWidth = columns[index].getBoundingClientRect().width;
+      const move = (moveEvent) => applyWidth(index, Math.max(48, startWidth + moveEvent.clientX - startX));
+      const stop = () => {
+        document.removeEventListener("pointermove", move);
+        document.removeEventListener("pointerup", stop);
+      };
+      document.addEventListener("pointermove", move);
+      document.addEventListener("pointerup", stop, { once: true });
+    });
+    handle.addEventListener("keydown", (event) => {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      event.preventDefault();
+      const current = columns[index].getBoundingClientRect().width;
+      applyWidth(index, Math.max(48, current + (event.key === "ArrowRight" ? 12 : -12)));
+    });
+  }
 }
 
 function renderSchemaTree(message = "") {
@@ -604,6 +834,7 @@ databaseSelect.addEventListener("change", () => {
   const profile = activeProfile();
   if (!profile) return;
   selectedDatabases.set(profile.id, databaseSelect.value);
+  persistSelectedDatabases();
   refreshSchema();
 });
 $("#schema-filter").addEventListener("input", () => renderSchemaTree());
@@ -670,6 +901,7 @@ $("#connection-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const saveButton = $("#save-profile");
   const isEditing = Boolean($("#profile-id").value);
+  const previousProfile = isEditing ? profiles.find((profile) => profile.id === $("#profile-id").value) : null;
   saveButton.classList.add("is-loading");
   $("#profile-error").textContent = "";
   try {
@@ -688,6 +920,16 @@ $("#connection-form").addEventListener("submit", async (event) => {
     });
     const password = $("#profile-password").value;
     if (password) passwords.set(saved.id, password);
+    queryConfirmationPreferences[saved.id] = $("#confirm-dangerous-queries").checked;
+    saveQueryConfirmationPreferences();
+    if (previousProfile && previousProfile.database !== saved.database) {
+      selectedDatabases.set(saved.id, saved.database);
+      persistSelectedDatabases();
+    }
+    const color = $("#profile-color").value;
+    if (color) connectionColors[saved.id] = color;
+    else delete connectionColors[saved.id];
+    saveConnectionColors();
     connectedIds.delete(saved.id);
     availableDatabases.delete(saved.id);
     schemaData = [];
@@ -727,6 +969,7 @@ async function connectSelected() {
     availableDatabases.set(connectionId, databases);
     const current = selectedDatabases.get(connectionId) || profile?.database;
     selectedDatabases.set(connectionId, databases.includes(current) ? current : (databases[0] || profile?.database || ""));
+    persistSelectedDatabases();
     renderProfiles();
     if (selectedId === connectionId) await refreshSchema();
     setTabStatus("Connected successfully", tabId, connectionId);
@@ -757,6 +1000,33 @@ $("#password-form").addEventListener("submit", async (event) => {
   renderProfiles();
   await connectSelected();
 });
+
+function queryMayChangeState(query) {
+  const sql = query
+    .replace(/\$([a-zA-Z_][\w]*|)\$[\s\S]*?\$\1\$/g, " ")
+    .replace(/'(?:''|\\.|[^'])*'/g, " ")
+    .replace(/"(?:""|[^"])*"/g, " ")
+    .replace(/--[^\n]*/g, " ")
+    .replace(/\/\*[\s\S]*?\*\//g, " ");
+  return /\b(?:INSERT|UPDATE|DELETE|MERGE|UPSERT|REPLACE|TRUNCATE|DROP|ALTER|CREATE|RENAME|GRANT|REVOKE|CALL|DO|EXEC(?:UTE)?|COPY|PUT|REMOVE|REFRESH|COMMENT|LOCK|LOAD|IMPORT|EXPORT|PURGE|SET|RESET|DISCARD|BEGIN|COMMIT|ROLLBACK|ANALYZE)\b/i.test(sql);
+}
+
+function requestQueryExecution(query) {
+  if (!selectedId) return;
+  if (queryConfirmationPreferences[selectedId] !== false && queryMayChangeState(query)) {
+    pendingConfirmedQuery = query;
+    $("#query-confirmation-sql").textContent = query;
+    queryConfirmationModal.classList.add("is-active");
+    $("#confirm-query-execution").focus();
+    return;
+  }
+  executeQuery(query);
+}
+
+function closeQueryConfirmation() {
+  pendingConfirmedQuery = "";
+  queryConfirmationModal.classList.remove("is-active");
+}
 
 async function executeQuery(query, source = "query") {
   if (!selectedId) return;
@@ -799,7 +1069,18 @@ function quoteIdentifier(identifier) {
   return `"${identifier.replaceAll('"', '""')}"`;
 }
 
-$("#run-query").addEventListener("click", () => executeQuery($("#sql-editor").value));
+$("#run-query").addEventListener("click", () => requestQueryExecution($("#sql-editor").value));
+$("#close-query-confirmation").addEventListener("click", closeQueryConfirmation);
+$("#cancel-query-confirmation").addEventListener("click", closeQueryConfirmation);
+$("#query-confirmation-background").addEventListener("click", closeQueryConfirmation);
+$("#confirm-query-execution").addEventListener("click", () => {
+  const query = pendingConfirmedQuery;
+  closeQueryConfirmation();
+  if (query) executeQuery(query);
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && queryConfirmationModal.classList.contains("is-active")) closeQueryConfirmation();
+});
 $("#sql-editor").addEventListener("input", () => persistQueryWorkspace());
 $("#add-query-tab").addEventListener("click", addQueryTab);
 renderQueryTabs();

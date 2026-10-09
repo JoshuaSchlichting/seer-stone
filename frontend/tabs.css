@@ -21,7 +21,7 @@
 }
 
 .query-tab.active {
-  border-bottom-color: var(--palette-primary, #187c73);
+  border-bottom-color: var(--workspace-accent, var(--palette-primary, #187c73));
 }
 
 .query-tab-select,

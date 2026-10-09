@@ -6,17 +6,43 @@ body * {
   user-select: none;
   -webkit-tap-highlight-color: transparent;
   -webkit-user-drag: none;
+  cursor: default;
+}
+
+button,
+[role="button"],
+a,
+.connection-item,
+.icon-button,
+.query-tab-select,
+.query-tab-close,
+.new-query-tab {
+  cursor: pointer;
+}
+
+input,
+textarea,
+[contenteditable="true"] {
+  cursor: text;
+}
+
+select {
+  cursor: default;
 }
 
 input,
 textarea,
 select,
-[contenteditable="true"],
-.results-table-wrap,
-.results-table-wrap * {
+[contenteditable="true"] {
   -webkit-user-select: text;
   user-select: text;
   -webkit-user-drag: auto;
+}
+
+.results-table-wrap,
+.results-table-wrap * {
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 input::selection,
@@ -31,6 +57,21 @@ textarea::selection,
 :root[data-theme="dark"] .results-table-wrap ::selection {
   background: var(--palette-dark-soft, #24413d);
   color: inherit;
+}
+
+.results-table-wrap td.cell-selected {
+  background: var(--palette-soft, #e4f4ee);
+  color: var(--palette-ink, inherit);
+}
+
+.results-table-wrap table:focus-visible {
+  outline: 1px solid var(--palette-primary, #187c73);
+  outline-offset: -1px;
+}
+
+:root[data-theme="dark"] .results-table-wrap td.cell-selected {
+  background: var(--palette-dark-soft, #24413d);
+  color: var(--palette-dark-ink, inherit);
 }
 
 button,
