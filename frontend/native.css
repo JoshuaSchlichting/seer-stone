@@ -1,0 +1,41 @@
+/* Treat the WebView as application chrome, not a selectable web document. */
+html,
+body,
+body * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-drag: none;
+}
+
+input,
+textarea,
+select,
+[contenteditable="true"],
+.results-table-wrap,
+.results-table-wrap * {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-user-drag: auto;
+}
+
+input::selection,
+textarea::selection,
+.results-table-wrap ::selection {
+  background: var(--palette-soft, #e4f4ee);
+  color: inherit;
+}
+
+:root[data-theme="dark"] input::selection,
+:root[data-theme="dark"] textarea::selection,
+:root[data-theme="dark"] .results-table-wrap ::selection {
+  background: var(--palette-dark-soft, #24413d);
+  color: inherit;
+}
+
+button,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}

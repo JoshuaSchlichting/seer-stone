@@ -8,6 +8,10 @@ const databaseSelect = $("#database-select");
 const toast = $("#toast");
 const themeSelect = $("#theme-select");
 const paletteSelect = $("#palette-select");
+document.addEventListener("contextmenu", (event) => {
+  if (event.target.closest('input, textarea, select, [contenteditable="true"], .results-table-wrap')) return;
+  event.preventDefault();
+});
 const systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
 function applyTheme(preference, persist = false) {
   const dark = preference === "dark" || (preference === "system" && systemTheme.matches);
