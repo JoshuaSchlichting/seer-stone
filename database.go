@@ -72,6 +72,8 @@ type DatabaseService struct {
 	localPasswords map[string]string
 	localIDs       map[string]bool
 	pools          map[string]databasePool
+	piMu           sync.Mutex
+	piSessions     map[string]*piAssistantSession
 	file           string
 }
 
@@ -89,6 +91,7 @@ func NewDatabaseService() (*DatabaseService, error) {
 		localPasswords: make(map[string]string),
 		localIDs:       make(map[string]bool),
 		pools:          make(map[string]databasePool),
+		piSessions:     make(map[string]*piAssistantSession),
 	}
 	data, err := os.ReadFile(service.file)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -472,6 +475,7 @@ func (s *DatabaseService) database(profile ConnectionProfile, password string) (
 
 // Close releases all cached database pools when the desktop application exits.
 func (s *DatabaseService) Close() error {
+	s.stopAllPiAssistants()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var firstError error

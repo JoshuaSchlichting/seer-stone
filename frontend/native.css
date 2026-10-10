@@ -45,6 +45,13 @@ select,
   user-select: none;
 }
 
+.pi-assistant-messages,
+.pi-assistant-messages * {
+  -webkit-user-select: text;
+  user-select: text;
+  cursor: text;
+}
+
 input::selection,
 textarea::selection,
 .results-table-wrap ::selection {

@@ -238,6 +238,48 @@ export class DatabaseSchema {
     }
 }
 
+export class PiAssistantEvent {
+    /**
+     * Creates a new PiAssistantEvent instance.
+     * @param {Partial<PiAssistantEvent>} [$$source = {}] - The source object to create the PiAssistantEvent.
+     */
+    constructor($$source = {}) {
+        if (!("type" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["type"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["text"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["error"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PiAssistantEvent instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {PiAssistantEvent}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new PiAssistantEvent(/** @type {Partial<PiAssistantEvent>} */($$parsedSource));
+    }
+}
+
 export class QueryResult {
     /**
      * Creates a new QueryResult instance.

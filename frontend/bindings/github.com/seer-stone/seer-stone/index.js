@@ -12,5 +12,6 @@ export {
     DatabaseColumn,
     DatabaseObject,
     DatabaseSchema,
+    PiAssistantEvent,
     QueryResult
 } from "./models.js";

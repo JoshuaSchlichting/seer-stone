@@ -59,11 +59,22 @@ export function LocalPassword(id) {
 }
 
 /**
+ * PiAssistantEvents drains events accumulated by the Pi RPC subprocess.
+ * @param {string} sessionID
+ * @returns {$CancellablePromise<$models.PiAssistantEvent[]>}
+ */
+export function PiAssistantEvents(sessionID) {
+    return $Call.ByID(3073914764, sessionID).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType4($result);
+    }));
+}
+
+/**
  * @returns {$CancellablePromise<$models.ConnectionProfile[]>}
  */
 export function Profiles() {
     return $Call.ByID(2084908486).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType4($result);
+        return $$createType6($result);
     }));
 }
 
@@ -76,7 +87,7 @@ export function Profiles() {
  */
 export function RunQuery(id, password, database, query) {
     return $Call.ByID(3342371831, id, password, database, query).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType5($result);
+        return $$createType7($result);
     }));
 }
 
@@ -86,8 +97,37 @@ export function RunQuery(id, password, database, query) {
  */
 export function SaveProfile(profile) {
     return $Call.ByID(2940116274, profile).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType3($result);
+        return $$createType5($result);
     }));
+}
+
+/**
+ * SendPiAssistantPrompt submits a user message to an existing in-app Pi session.
+ * @param {string} sessionID
+ * @param {string} message
+ * @returns {$CancellablePromise<void>}
+ */
+export function SendPiAssistantPrompt(sessionID, message) {
+    return $Call.ByID(3523061229, sessionID, message);
+}
+
+/**
+ * StartPiAssistant launches Pi in RPC mode for the in-app SQL assistant panel.
+ * The provided context must not contain credentials or SQL editor contents.
+ * @param {string} context
+ * @returns {$CancellablePromise<string>}
+ */
+export function StartPiAssistant(context) {
+    return $Call.ByID(1974288369, context);
+}
+
+/**
+ * StopPiAssistant closes one in-app Pi RPC session.
+ * @param {string} sessionID
+ * @returns {$CancellablePromise<void>}
+ */
+export function StopPiAssistant(sessionID) {
+    return $Call.ByID(4139579973, sessionID);
 }
 
 /**
@@ -103,6 +143,8 @@ export function TestConnection(id, password) {
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = $models.DatabaseSchema.createFrom;
 const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = $models.ConnectionProfile.createFrom;
+const $$createType3 = $models.PiAssistantEvent.createFrom;
 const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = $models.QueryResult.createFrom;
+const $$createType5 = $models.ConnectionProfile.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = $models.QueryResult.createFrom;

@@ -47,7 +47,12 @@
 
       <section class="workspace">
         <section class="editor-panel">
-          <div class="panel-toolbar"><div id="query-tabs" class="query-tabs" role="tablist" aria-label="SQL query tabs"></div><button id="add-query-tab" class="new-query-tab" type="button" title="New query tab" aria-label="New query tab">＋</button><div class="editor-tools"><span>SQL</span><span class="tool-divider"></span><span>⌘ ↵ to run</span></div></div>
+          <div class="panel-toolbar"><div id="query-tabs" class="query-tabs" role="tablist" aria-label="SQL query tabs"></div><button id="add-query-tab" class="new-query-tab" type="button" title="New query tab" aria-label="New query tab">＋</button><button id="open-pi-assistant" class="ask-pi-button" type="button" title="Open the in-app Pi panel. Its configured model receives this connection’s dialect and loaded schema names/columns; passwords and editor SQL are excluded.">Ask Pi</button><div id="editor-tools" class="editor-tools"><span>SQL</span><span class="tool-divider"></span><span>⌘ ↵ to run</span></div></div>
+          <section id="pi-assistant-panel" class="pi-assistant-panel is-hidden" aria-label="Pi SQL assistant">
+            <div class="pi-assistant-header"><div><strong>Pi SQL assistant</strong><span id="pi-assistant-context"></span></div><span id="pi-assistant-status" class="pi-assistant-status">Ready</span></div>
+            <div id="pi-assistant-messages" class="pi-assistant-messages" role="log" aria-live="polite"><div class="pi-message assistant"><strong>Pi</strong><div>Describe the query you need. I have the selected database dialect and loaded schema context, but cannot access or execute against your database.</div></div></div>
+            <form id="pi-assistant-form" class="pi-assistant-form"><textarea id="pi-assistant-prompt" rows="2" placeholder="Ask Pi to write or explain SQL…" aria-label="Message Pi"></textarea><button id="send-pi-prompt" class="button" type="submit">Send</button></form>
+          </section>
           <div class="editor-wrap"><div class="line-numbers">1<br>2<br>3<br>4<br>5</div><textarea id="sql-editor" spellcheck="false" aria-label="SQL query editor">SELECT current_database(), now();</textarea></div>
           <div class="editor-footer"><span id="query-message">Ready to query</span><button id="run-query" class="button run-button" disabled><span>▶</span> Run query</button></div>
         </section>

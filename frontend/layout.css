@@ -535,3 +535,125 @@ body {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+.pi-assistant-panel {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.pi-assistant-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 17px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 11px;
+}
+
+.pi-assistant-header strong,
+.pi-assistant-header span {
+  display: block;
+}
+
+.pi-assistant-header #pi-assistant-context {
+  margin-top: 4px;
+  color: var(--muted);
+  font: 9px 'DM Mono', monospace;
+}
+
+.pi-assistant-status {
+  color: var(--palette-primary, #187c73);
+  font: 9px 'DM Mono', monospace;
+}
+
+.pi-assistant-messages {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 12px;
+  overflow: auto;
+  padding: 18px max(18px, 6%);
+  overscroll-behavior: contain;
+}
+
+.pi-message {
+  max-width: 88%;
+  align-self: flex-start;
+  padding: 10px 13px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.pi-message.user {
+  align-self: flex-end;
+  border-color: var(--palette-border, var(--line));
+  background: var(--palette-soft, var(--bg));
+}
+
+.pi-message.error {
+  border-color: #e8c9c5;
+  background: #fff5f3;
+  color: #963f3a;
+}
+
+.pi-message strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--palette-primary, #187c73);
+  font: 9px 'DM Mono', monospace;
+}
+
+.pi-message div {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.pi-assistant-form {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-end;
+  gap: 9px;
+  padding: 12px 17px;
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.pi-assistant-form textarea {
+  min-height: 42px;
+  max-height: 150px;
+  flex: 1 1 auto;
+  resize: vertical;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  outline: none;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.pi-assistant-form textarea:focus {
+  border-color: var(--palette-primary, #187c73);
+}
+
+.pi-assistant-form .button {
+  height: 34px;
+  border: 0;
+  background: var(--workspace-accent, var(--palette-primary, #187c73));
+  color: #fff;
+  font-size: 10px;
+}
+
+.pi-assistant-form .button:hover:not(:disabled) {
+  filter: brightness(.9);
+}
