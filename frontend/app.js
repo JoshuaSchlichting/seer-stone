@@ -491,7 +491,7 @@ function renderPiMessageContent(container, content) {
   let cursor = 0;
   let match;
   while ((match = codeFence.exec(content)) !== null) {
-    if (match.index > cursor) container.append(document.createTextNode(content.slice(cursor, match.index)));
+    if (match.index > cursor) appendPiInlineMarkdown(container, content.slice(cursor, match.index));
     const block = document.createElement("div");
     block.className = "pi-code-block";
     const pre = document.createElement("pre");
@@ -513,7 +513,27 @@ function renderPiMessageContent(container, content) {
     container.append(block);
     cursor = codeFence.lastIndex;
   }
-  if (cursor < content.length) container.append(document.createTextNode(content.slice(cursor)));
+  if (cursor < content.length) appendPiInlineMarkdown(container, content.slice(cursor));
+}
+
+function appendPiInlineMarkdown(container, text) {
+  const pattern = /\*\*\*(.+?)\*\*\*|___(.+?)___|\*\*(.+?)\*\*|__(.+?)__|\*([^*\n]+)\*|_([^_\n]+)_/g;
+  let cursor = 0;
+  let match;
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > cursor) container.append(document.createTextNode(text.slice(cursor, match.index)));
+    const element = document.createElement(match[1] !== undefined || match[2] !== undefined ? "strong" : match[3] !== undefined || match[4] !== undefined ? "strong" : "em");
+    if (match[1] !== undefined || match[2] !== undefined) {
+      const italic = document.createElement("em");
+      italic.textContent = match[1] ?? match[2];
+      element.append(italic);
+    } else {
+      element.textContent = match[3] ?? match[4] ?? match[5] ?? match[6];
+    }
+    container.append(element);
+    cursor = pattern.lastIndex;
+  }
+  if (cursor < text.length) container.append(document.createTextNode(text.slice(cursor)));
 }
 
 async function resolvePiWriteApproval(assistant, message, approved) {
