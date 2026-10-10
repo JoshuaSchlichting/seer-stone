@@ -292,6 +292,7 @@ function loadQueryWorkspace(id, preserveScratch = false) {
 
 function switchQueryWorkspace(id) {
   if (selectedId === id) return;
+  workspaceElement.classList.remove("is-startup");
   const preserveScratch = !selectedId;
   persistQueryWorkspace();
   selectedId = id;
@@ -1031,16 +1032,16 @@ $("#copy-results-csv").addEventListener("click", async () => {
   }
 });
 
-$("#save-results-csv").addEventListener("click", () => {
+$("#save-results-csv").addEventListener("click", async () => {
   const result = currentDisplayedResult();
   if (!result) return;
-  const blob = new Blob(["\\uFEFF", resultAsCSV(result)], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "results.csv";
-  link.click();
-  URL.revokeObjectURL(url);
+  const csv = resultAsCSV(result);
+  try {
+    await DatabaseService.SaveCSVFile(csv);
+    showToast("Results saved as CSV.");
+  } catch {
+    showToast("Could not save results as CSV.", true);
+  }
 });
 
 function currentDisplayedResult() {

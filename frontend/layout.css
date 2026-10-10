@@ -136,6 +136,29 @@ body {
   padding-bottom: 18px;
 }
 
+.workspace.is-startup {
+  display: block;
+  overflow: auto;
+}
+
+.workspace.is-startup .editor-panel,
+.workspace.is-startup .workspace-splitter,
+.workspace.is-startup .results-heading,
+.workspace.is-startup #result-state,
+.workspace.is-startup #results-table-wrap {
+  display: none !important;
+}
+
+.workspace.is-startup .results-section {
+  display: block;
+  margin: 0;
+}
+
+.workspace.is-startup .changelog-card {
+  max-width: 760px;
+  margin: 24px auto;
+}
+
 .workspace-title {
   margin-bottom: 16px;
 }

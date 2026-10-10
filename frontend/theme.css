@@ -125,6 +125,7 @@
   color: var(--ink);
 }
 
+:root[data-theme="dark"] .changelog-card,
 :root[data-theme="dark"] .topbar,
 :root[data-theme="dark"] .engine-badge,
 :root[data-theme="dark"] .editor-panel,
@@ -134,6 +135,7 @@
   border-color: #2c3d40;
 }
 
+:root[data-theme="dark"] .changelog-card,
 :root[data-theme="dark"] .topbar,
 :root[data-theme="dark"] .editor-panel,
 :root[data-theme="dark"] .results-table-wrap {
@@ -141,12 +143,15 @@
 }
 
 :root[data-theme="dark"] .breadcrumb strong,
+:root[data-theme="dark"] .changelog-heading h2,
+:root[data-theme="dark"] .changelog-card li,
 :root[data-theme="dark"] .workspace-title h1,
 :root[data-theme="dark"] .results-heading h2 {
   color: #dce7e5;
 }
 
 :root[data-theme="dark"] .breadcrumb,
+:root[data-theme="dark"] .changelog-heading .overline,
 :root[data-theme="dark"] .subtitle-copy,
 :root[data-theme="dark"] .engine-badge,
 :root[data-theme="dark"] .connection-state,
@@ -182,6 +187,7 @@
   filter: brightness(1.15);
 }
 
+:root[data-theme="dark"] .changelog-card li,
 :root[data-theme="dark"] .panel-toolbar,
 :root[data-theme="dark"] .editor-footer,
 :root[data-theme="dark"] .results-table-wrap th,

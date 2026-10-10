@@ -72,6 +72,13 @@ export function PiAssistantEvents(sessionID) {
 /**
  * @returns {$CancellablePromise<$models.ConnectionProfile[]>}
  */
+export function SaveCSVFile(contents) {
+    return $Call.ByID(1455163189, contents);
+}
+
+/**
+ * @returns {$CancellablePromise<$models.ConnectionProfile[]>}
+ */
 export function Profiles() {
     return $Call.ByID(2084908486).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType6($result);

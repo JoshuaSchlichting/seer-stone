@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/snowflakedb/gosnowflake"
@@ -123,6 +124,14 @@ func NewDatabaseService() (*DatabaseService, error) {
 		return nil, err
 	}
 	return service, nil
+}
+
+func (s *DatabaseService) SaveCSVFile(contents string) error {
+	path, err := application.Get().Dialog.SaveFile().SetFilename("results.csv").AddFilter("CSV files", "*.csv").PromptForSingleSelection()
+	if err != nil || path == "" {
+		return err
+	}
+	return os.WriteFile(path, []byte("\uFEFF"+contents), 0600)
 }
 
 func (s *DatabaseService) Profiles() []ConnectionProfile {
