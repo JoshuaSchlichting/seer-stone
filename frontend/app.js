@@ -147,6 +147,18 @@ try {
 function saveConnectionColors() {
   try { localStorage.setItem("seer-stone-connection-colors", JSON.stringify(connectionColors)); } catch {}
 }
+function updateProfileSaveButtonColor() {
+  const color = connectionAccentValues[$("#profile-color").value];
+  const button = $("#save-profile");
+  if (color) {
+    button.style.backgroundColor = color;
+    button.style.borderColor = color;
+  } else {
+    button.style.removeProperty("background-color");
+    button.style.removeProperty("border-color");
+  }
+}
+
 let queryConfirmationPreferences = {};
 try {
   const storedPreferences = JSON.parse(localStorage.getItem("seer-stone-query-confirmations") || "{}");
@@ -692,6 +704,10 @@ function activeProfile() {
   return profiles.find((profile) => profile.id === selectedId);
 }
 
+function selectedDatabase(profile) {
+  return profile ? (selectedDatabases.get(profile.id) || profile.database || "") : "";
+}
+
 function engineInfo(engine) {
   switch (engine || "cockroach") {
     case "postgres": return { name: "PostgreSQL", icon: "PG" };
@@ -728,12 +744,17 @@ function renderProfiles() {
     if (accent) button.style.setProperty("--connection-accent", accent);
     button.innerHTML = `<span class="connection-symbol">${engine.icon}</span><span class="connection-copy"><strong></strong><small></small></span><span class="item-dot${connectedIds.has(profile.id) ? " connected" : ""}"></span>`;
     button.querySelector("strong").textContent = profile.name;
-    button.querySelector("small").textContent = `${profile.database || "Select database"} · ${profile.host}`;
+    button.querySelector("small").textContent = `${selectedDatabase(profile) || "Select database"} · ${profile.host}`;
     list.append(button);
   }
   const profile = activeProfile();
   const workspaceAccent = connectionAccentValues[connectionColors[profile?.id]];
+  const schemaBrowser = $(".schema-browser");
+  if (workspaceAccent) schemaBrowser.style.setProperty("--connection-accent", workspaceAccent);
+  else schemaBrowser.style.removeProperty("--connection-accent");
   const connectButton = $("#connect-button");
+  if (workspaceAccent) document.documentElement.style.setProperty("--active-connection-accent", workspaceAccent);
+  else document.documentElement.style.removeProperty("--active-connection-accent");
   connectButton.classList.toggle("has-connection-accent", Boolean(workspaceAccent));
   if (workspaceAccent) {
     connectButton.style.setProperty("--connection-accent", workspaceAccent);
@@ -767,7 +788,7 @@ function renderProfiles() {
       option.textContent = name;
       databaseSelect.append(option);
     }
-    const chosen = selectedDatabases.get(profile.id) || profile.database;
+    const chosen = selectedDatabase(profile);
     databaseSelect.value = databases.includes(chosen) ? chosen : databases[0];
   } else {
     const option = document.createElement("option");
@@ -792,13 +813,14 @@ function openModal(profile = null) {
   $("#connection-form").reset();
   $("#profile-id").value = profile?.id || "";
   $("#profile-color").value = connectionColors[profile?.id] || "";
+  updateProfileSaveButtonColor();
   $("#confirm-dangerous-queries").checked = profile ? queryConfirmationPreferences[profile.id] !== false : true;
   $("#allow-pi-database-access").checked = profile?.allowPiDatabaseAccess === true;
   $("#allow-pi-database-write").checked = profile?.allowPiDatabaseWrite === true;
   updatePiAccessFields();
   $("#profile-engine").value = profile?.engine || "cockroach";
   $("#profile-port").value = profile?.port || "26257";
-  $("#profile-database").value = profile?.database || "defaultdb";
+  $("#profile-database").value = profile ? selectedDatabase(profile) : "defaultdb";
   $("#profile-warehouse").value = profile?.warehouse || "";
   $("#profile-schema").value = profile?.schema || "";
   $("#profile-role").value = profile?.role || "";
@@ -1153,6 +1175,7 @@ databaseSelect.addEventListener("change", () => {
   if (!profile) return;
   selectedDatabases.set(profile.id, databaseSelect.value);
   persistSelectedDatabases();
+  renderProfiles();
   refreshSchema();
 });
 $("#schema-filter").addEventListener("input", () => renderSchemaTree());
@@ -1209,6 +1232,7 @@ $("#edit-connection").addEventListener("click", () => {
   if (profile) openModal(profile);
 });
 
+$("#profile-color").addEventListener("change", updateProfileSaveButtonColor);
 $("#profile-engine").addEventListener("change", updateEngineFields);
 $("#allow-pi-database-access").addEventListener("change", updatePiAccessFields);
 $("#add-connection").addEventListener("click", openModal);

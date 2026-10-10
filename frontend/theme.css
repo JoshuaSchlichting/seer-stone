@@ -337,9 +337,12 @@
 }
 
 .modal-card-body .input:focus,
-.modal-card-body select:focus {
-  border-color: var(--palette-primary);
-  box-shadow: 0 0 0 1px var(--palette-primary);
+.modal-card-body select:focus,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  border-color: var(--active-connection-accent, var(--palette-primary));
+  box-shadow: 0 0 0 1px var(--active-connection-accent, var(--palette-primary));
 }
 
 .schema-toggle-all:hover:not(:disabled) {
@@ -360,6 +363,40 @@
 .schema-object-button:hover,
 .schema-object-button.expanded {
   background: var(--palette-sidebar-raised);
+}
+
+.connection-item.selected {
+  box-shadow: inset 2px 0 var(--connection-accent, transparent), 0 0 10px color-mix(in srgb, var(--connection-accent, transparent) 35%, transparent);
+}
+
+.schema-browser:has(.schema-tree) .schema-heading {
+  border-left: 2px solid var(--connection-accent, transparent);
+  padding-left: 6px;
+}
+
+.schema-browser .schema-filter:focus,
+.schema-browser .schema-database-field select:focus {
+  border-color: var(--connection-accent, #2e4648);
+  box-shadow: 0 0 0 1px var(--connection-accent, transparent);
+}
+
+.schema-browser .schema-icon,
+.schema-browser .schema-object-button.expanded .object-kind,
+.schema-browser .schema-expand-button:hover {
+  color: var(--connection-accent, #8ac9b8);
+}
+
+.schema-browser .schema-children {
+  border-left-color: color-mix(in srgb, var(--connection-accent, #2c4446) 45%, #2c4446);
+}
+
+.connection-item[style*="--connection-accent"] .connection-symbol {
+  border-color: var(--connection-accent);
+  color: var(--connection-accent);
+}
+
+.connect-button.has-connection-accent:hover:not(:disabled) {
+  filter: brightness(.9);
 }
 
 .icon-button {

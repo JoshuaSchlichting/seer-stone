@@ -1,0 +1,51 @@
+/* Keep the sidebar compact while making its labels comfortable to scan. */
+.sidebar {
+  padding-top: 20px;
+}
+.brand {
+  padding-bottom: 24px;
+}
+.sidebar-label {
+  padding-bottom: 14px;
+  font-size: 11px;
+}
+.connections-heading {
+  padding-bottom: 7px;
+  font-size: 11px;
+}
+.connection-list {
+  gap: 3px;
+}
+.connection-item {
+  gap: 9px;
+  padding: 7px 8px;
+}
+.connection-symbol {
+  width: 27px;
+  height: 27px;
+}
+.connection-copy strong {
+  font-size: 13px;
+}
+.connection-copy small {
+  margin-top: 2px;
+  font-size: 11px;
+}
+.empty-connections {
+  padding: 8px;
+  font-size: 12px;
+}
+
+/* Schema browser text was scaled too far down for a persistent navigation panel. */
+.schema-heading { font-size: 11px; }
+.schema-toggle-all { font-size: 10px; }
+.schema-filter { font-size: 12px; }
+.schema-empty, .schema-status { font-size: 12px; }
+.schema-node-button, .schema-object-button { font-size: 12px; }
+.schema-chevron, .object-kind { font-size: 10px; }
+.schema-count { font-size: 10px; }
+.column-name { font-size: 11px; }
+.column-meta { font-size: 10px; }
+.schema-empty-filter { font-size: 11px; }
+.database-field.schema-database-field { gap: 8px; margin-bottom: 14px; font-size: 12px; }
+.schema-database-field select { height: 38px; font-size: 14px; }
