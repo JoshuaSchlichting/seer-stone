@@ -13,6 +13,17 @@ wails3 dev
 
 The dev configuration uses the embedded frontend assets served by Wails/Go and enables the built-in MCP server. Connect an MCP client to `http://127.0.0.1:9099/mcp` while the app is running.
 
+## Linux releases
+
+Linux x86-64 releases are distributed as an AppImage with bundled GTK/WebKit dependencies:
+
+```sh
+chmod +x linux-amd64.AppImage
+./linux-amd64.AppImage
+```
+
+The image is built on Ubuntu 24.04 and requires glibc 2.39 or newer and a graphical desktop. It is not a fully static binary and does not support every older distribution. If FUSE is unavailable, use `./linux-amd64.AppImage --appimage-extract-and-run`.
+
 ## Database connections
 
 Use **＋** in the sidebar to add a connection and choose CockroachDB, PostgreSQL, or Snowflake. CockroachDB profiles use port `26257` by default; PostgreSQL uses `5432`. Snowflake profiles use an account identifier, username/password, and optional database, warehouse, schema, and role. Snowflake browser SSO/key-pair authentication is not currently exposed.

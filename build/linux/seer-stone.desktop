@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Seer Stone
+Comment=A desktop SQL client for CockroachDB, PostgreSQL, and Snowflake
+Exec=seer-stone
+Icon=seer-stone
+Terminal=false
+Categories=Development;Database;

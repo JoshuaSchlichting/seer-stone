@@ -48,7 +48,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev libayatana-appindicator3-dev
+          sudo apt-get install -y build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev libayatana-appindicator3-dev desktop-file-utils librsvg2-bin libgdk-pixbuf2.0-bin patchelf squashfs-tools libfuse2t64
 
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.28
@@ -62,14 +62,28 @@ jobs:
           GOMEMLIMIT: 4GiB
         run: wails3 build
 
-      - name: Package release artifact (Linux)
+      - name: Package release artifact (Linux AppImage)
         if: runner.os == 'Linux'
         shell: bash
+        env:
+          # Run downloaded AppImage tooling without requiring a FUSE mount.
+          APPIMAGE_EXTRACT_AND_RUN: '1'
         run: |
           mkdir -p dist
-          test -x 'build/bin/seer-stone' || test -x 'build/bin/Seer Stone'
-          if test -x 'build/bin/seer-stone'; then cp 'build/bin/seer-stone' dist/seer-stone; else cp 'build/bin/Seer Stone' dist/seer-stone; fi
-          tar -C dist -czf "${{ matrix.artifact }}.tar.gz" seer-stone
+          test -x build/bin/seer-stone
+          rsvg-convert -w 256 -h 256 build/linux/seer-stone.svg -o build/linux/seer-stone.png
+          desktop-file-validate build/linux/seer-stone.desktop
+          wails3 generate appimage \
+            -binary build/bin/seer-stone \
+            -icon build/linux/seer-stone.png \
+            -desktopfile build/linux/seer-stone.desktop \
+            -outputdir dist
+          test -f dist/seer-stone-x86_64.AppImage
+          mv dist/seer-stone-x86_64.AppImage "${{ matrix.artifact }}.AppImage"
+          chmod +x "${{ matrix.artifact }}.AppImage"
+          # Verify the generated image can be extracted without FUSE.
+          env -u APPIMAGE_EXTRACT_AND_RUN "./${{ matrix.artifact }}.AppImage" --appimage-extract >/dev/null
+          test -x squashfs-root/usr/bin/seer-stone
 
       - name: Package release artifact (Windows)
         if: runner.os == 'Windows'
@@ -103,6 +117,7 @@ jobs:
           path: |
             ${{ matrix.artifact }}.zip
             ${{ matrix.artifact }}.tar.gz
+            ${{ matrix.artifact }}.AppImage
           if-no-files-found: error
           retention-days: 7
 
