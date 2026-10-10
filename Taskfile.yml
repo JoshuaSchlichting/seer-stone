@@ -8,7 +8,9 @@ tasks:
   build:
     desc: Build a production app (MCP is not enabled)
     cmds:
-      - wails3 build
+      # wails3 build dispatches to this task; do not call it recursively.
+      # Frontend assets are static and embedded by main.go.
+      - go build -tags production -trimpath -buildvcs=false -ldflags="{{if eq OS "windows"}}-H windowsgui {{end}}-w -s" -o "build/bin/seer-stone{{if eq OS "windows"}}.exe{{end}}" .
   check:
     desc: Compile-check the Go application
     cmds:
