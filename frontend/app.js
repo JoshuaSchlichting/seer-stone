@@ -207,6 +207,20 @@ const expandedSchemas = new Set();
 const expandedObjects = new Set();
 const passwords = new Map();
 let queryWorkspaceStore = {};
+let piTranscriptStore = {};
+try {
+  const savedTranscripts = JSON.parse(localStorage.getItem("seer-stone-pi-transcripts") || "{}");
+  if (savedTranscripts && typeof savedTranscripts === "object" && !Array.isArray(savedTranscripts)) piTranscriptStore = savedTranscripts;
+} catch {}
+function persistPiTranscript(profileId, assistant) {
+  if (!profileId || !assistant) return;
+  piTranscriptStore[profileId] = {
+    database: assistant.database || "",
+    messages: assistant.messages.filter((message) => message.role !== "approval").map(({ role, text }) => ({ role, text })),
+    activeResult: assistant.activeResult || null,
+  };
+  try { localStorage.setItem("seer-stone-pi-transcripts", JSON.stringify(piTranscriptStore)); } catch {}
+}
 try {
   const savedWorkspaces = JSON.parse(localStorage.getItem("seer-stone-query-workspaces") || "{}");
   if (savedWorkspaces && typeof savedWorkspaces === "object" && !Array.isArray(savedWorkspaces)) queryWorkspaceStore = savedWorkspaces;
@@ -281,7 +295,7 @@ function switchQueryWorkspace(id) {
   persistQueryWorkspace();
   selectedId = id;
   piPanelActive = false;
-  activePiProfileId = piAssistantSessions.has(id) ? id : "";
+  activePiProfileId = piAssistantSessions.has(id) || piTranscriptStore[id] ? id : "";
   loadQueryWorkspace(id, preserveScratch);
 }
 
@@ -350,13 +364,13 @@ function renderQueryTabs() {
     }
     container.append(item);
   }
-  if (activePiProfileId && piAssistantSessions.has(activePiProfileId)) {
+  if (activePiProfileId && (piAssistantSessions.has(activePiProfileId) || piTranscriptStore[activePiProfileId])) {
     const item = document.createElement("div");
     item.className = `query-tab pi-query-tab${piPanelActive ? " active" : ""}`;
     const select = document.createElement("button");
     const assistant = piAssistantSessions.get(activePiProfileId);
     const profile = profiles.find((entry) => entry.id === activePiProfileId);
-    const database = assistant.database || "database not selected";
+    const database = assistant?.database || piTranscriptStore[activePiProfileId]?.database || "database not selected";
     const label = `Pi | ${database}`;
     select.type = "button";
     select.className = "query-tab-select";
@@ -365,7 +379,10 @@ function renderQueryTabs() {
     select.setAttribute("aria-label", `Pi for ${database}`);
     select.title = `Pi | ${database}`;
     select.textContent = label;
-    select.addEventListener("click", () => activatePiAssistantTab(activePiProfileId));
+    select.addEventListener("click", () => {
+      if (piAssistantSessions.has(activePiProfileId)) activatePiAssistantTab(activePiProfileId);
+      else openPiAssistantTab();
+    });
     item.append(select);
     container.append(item);
   }
@@ -391,7 +408,10 @@ function activateQueryTab(id) {
 
 function activatePiAssistantTab(profileId = activePiProfileId) {
   const assistant = piAssistantSessions.get(profileId);
-  if (!assistant) return;
+  if (!assistant) {
+    openPiAssistantTab();
+    return;
+  }
   saveActiveQuery();
   persistQueryWorkspace();
   activePiProfileId = profileId;
@@ -458,7 +478,8 @@ async function openPiAssistantTab() {
       const database = databaseSelect.value || selectedDatabases.get(profile.id) || profile.database || "";
       const confirmWrites = queryConfirmationPreferences[profile.id] !== false;
       const sessionId = await DatabaseService.StartPiAssistant(context, profile.id, password, database, confirmWrites);
-      assistant = { sessionId, context, database, messages: [], busy: false, stopped: false, status: profile.allowPiDatabaseAccess ? "Starting database tool…" : "No database access" };
+      const savedTranscript = piTranscriptStore[profile.id];
+      assistant = { sessionId, context, database, messages: Array.isArray(savedTranscript?.messages) ? savedTranscript.messages : [], activeResult: savedTranscript?.activeResult || null, busy: false, stopped: false, status: profile.allowPiDatabaseAccess ? "Starting database tool…" : "No database access" };
       piAssistantSessions.set(profile.id, assistant);
     }
     activePiProfileId = profile.id;
@@ -709,6 +730,7 @@ function startPiAssistantPolling() {
         if (assistant.stopped) continue;
         const events = await DatabaseService.PiAssistantEvents(assistant.sessionId);
         for (const event of events) applyPiAssistantEvent(assistant, event);
+        if (events.length) persistPiTranscript(profileId, assistant);
         if (events.length && profileId === activePiProfileId && piPanelActive) renderPiAssistant();
       }
     } catch (error) {
@@ -902,6 +924,7 @@ function renderProfiles() {
     databaseSelect.append(option);
   }
   const isConnected = Boolean(profile && connectedIds.has(profile.id));
+  $("#changelog").classList.toggle("is-hidden", isConnected);
   $("#connection-state-label").textContent = isConnected ? "Connected" : "Disconnected";
   $("#connection-state").classList.toggle("is-connected", isConnected);
   $("#connection-state-light").classList.toggle("connected", isConnected);
@@ -1563,6 +1586,7 @@ $("#pi-assistant-form").addEventListener("submit", async (event) => {
   const message = prompt.value.trim();
   if (!assistant || !message || assistant.busy || assistant.stopped) return;
   assistant.messages.push({ role: "user", text: message });
+  persistPiTranscript(activePiProfileId, assistant);
   assistant.busy = true;
   assistant.status = "Thinking…";
   prompt.value = "";
@@ -1572,6 +1596,7 @@ $("#pi-assistant-form").addEventListener("submit", async (event) => {
   } catch (error) {
     assistant.busy = false;
     assistant.messages.push({ role: "error", text: String(error) });
+    persistPiTranscript(activePiProfileId, assistant);
     renderPiAssistant();
   }
 });
