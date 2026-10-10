@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -22,87 +23,151 @@ type PiAssistantEvent struct {
 }
 
 type piAssistantSession struct {
-	id          string
-	cmd         *exec.Cmd
-	stdin       io.WriteCloser
-	contextPath string
-	writeMu     sync.Mutex
-	eventsMu    sync.Mutex
-	events      []PiAssistantEvent
+	id            string
+	profileID     string
+	cmd           *exec.Cmd
+	stdin         io.WriteCloser
+	contextPath   string
+	extensionPath string
+	bridge        *piDatabaseBridge
+	writeMu       sync.Mutex
+	eventsMu      sync.Mutex
+	events        []PiAssistantEvent
 }
 
-// StartPiAssistant launches Pi in RPC mode for the in-app SQL assistant panel.
-// The provided context must not contain credentials or SQL editor contents.
-func (s *DatabaseService) StartPiAssistant(context string) (string, error) {
+// StartPiAssistant launches Pi in RPC mode. The provided prompt context must not
+// contain credentials or SQL editor contents. Database access is separately
+// gated by the saved connection's explicit opt-in.
+func (s *DatabaseService) StartPiAssistant(context, profileID, password, database string) (string, error) {
 	if strings.TrimSpace(context) == "" {
 		return "", fmt.Errorf("database context is empty")
 	}
 	if len(context) > 2*1024*1024 {
 		return "", fmt.Errorf("SQL assistant context is too large")
 	}
-	piPath, err := findPiExecutable()
+	configuredProfile, err := s.profile(profileID)
 	if err != nil {
 		return "", err
 	}
-
+	profile := configuredProfile
+	if database != "" {
+		profile.Database = database
+	}
+	var bridge *piDatabaseBridge
+	var extensionPath string
+	if profile.AllowPiDatabaseAccess {
+		bridge, endpoint, err := startPiDatabaseBridge(s, profileID, password, profile.Database)
+		if err != nil {
+			return "", err
+		}
+		extensionPath, err = createPiDatabaseExtension(endpoint, bridge.token)
+		if err != nil {
+			bridge.close()
+			return "", err
+		}
+	}
+	cleanup := func() {
+		if bridge != nil {
+			bridge.close()
+		}
+		if extensionPath != "" {
+			_ = os.Remove(extensionPath)
+		}
+	}
+	piPath, err := findPiExecutable()
+	if err != nil {
+		cleanup()
+		return "", err
+	}
 	contextFile, err := os.CreateTemp("", "seer-stone-pi-context-*.md")
 	if err != nil {
+		cleanup()
 		return "", fmt.Errorf("create Pi context file: %w", err)
 	}
 	contextPath := contextFile.Name()
 	if _, err := contextFile.WriteString(context); err != nil {
 		contextFile.Close()
 		os.Remove(contextPath)
+		cleanup()
 		return "", fmt.Errorf("write Pi context file: %w", err)
 	}
 	if err := contextFile.Close(); err != nil {
 		os.Remove(contextPath)
+		cleanup()
 		return "", fmt.Errorf("close Pi context file: %w", err)
 	}
 
-	cmd := exec.Command(piPath,
-		"--mode", "rpc",
-		"--no-session",
-		"--no-tools",
-		"--no-extensions",
-		"--no-skills",
-		"--no-context-files",
-		"--append-system-prompt", contextPath,
-	)
+	args := []string{"--mode", "rpc", "--no-session", "--no-extensions", "--no-skills", "--no-context-files", "--no-mcp", "--append-system-prompt", contextPath}
+	if bridge == nil {
+		args = append(args, "--no-tools")
+	} else {
+		args = append(args, "--no-builtin-tools", "--extension", extensionPath, "--tools", piDatabaseToolName)
+	}
+	cmd := exec.Command(piPath, args...)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		os.Remove(contextPath)
+		cleanup()
 		return "", fmt.Errorf("start Pi RPC input: %w", err)
 	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		stdin.Close()
 		os.Remove(contextPath)
+		cleanup()
 		return "", fmt.Errorf("start Pi RPC output: %w", err)
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		stdin.Close()
 		os.Remove(contextPath)
+		cleanup()
 		return "", fmt.Errorf("start Pi diagnostics: %w", err)
 	}
 	if err := cmd.Start(); err != nil {
 		stdin.Close()
 		os.Remove(contextPath)
+		cleanup()
 		return "", fmt.Errorf("start Pi: %w", err)
 	}
-
 	var idBytes [12]byte
 	if _, err := rand.Read(idBytes[:]); err != nil {
-		cmd.Process.Kill()
+		_ = cmd.Process.Kill()
 		os.Remove(contextPath)
+		cleanup()
 		return "", fmt.Errorf("create Pi session ID: %w", err)
 	}
 	sessionID := hex.EncodeToString(idBytes[:])
-	session := &piAssistantSession{id: sessionID, cmd: cmd, stdin: stdin, contextPath: contextPath}
-	s.piMu.Lock()
-	s.piSessions[sessionID] = session
-	s.piMu.Unlock()
+	session := &piAssistantSession{
+		id: sessionID, profileID: profileID, cmd: cmd, stdin: stdin,
+		contextPath: contextPath, extensionPath: extensionPath, bridge: bridge,
+	}
+	s.mu.RLock()
+	var currentProfile ConnectionProfile
+	profileFound := false
+	for _, candidate := range s.profiles {
+		if candidate.ID == profileID {
+			currentProfile = candidate
+			profileFound = true
+			break
+		}
+	}
+	var profileErr error
+	if !profileFound || currentProfile != configuredProfile {
+		profileErr = errors.New("connection settings changed while starting the assistant; try again")
+	}
+	if profileErr == nil {
+		s.piMu.Lock()
+		s.piSessions[sessionID] = session
+		s.piMu.Unlock()
+	}
+	s.mu.RUnlock()
+	if profileErr != nil {
+		_ = cmd.Process.Kill()
+		os.Remove(contextPath)
+		cleanup()
+		return "", profileErr
+	}
 	go session.readOutput(stdout, stderr)
 	return sessionID, nil
 }
@@ -125,16 +190,9 @@ func (s *DatabaseService) StopPiAssistant(sessionID string) error {
 	session := s.piSessions[sessionID]
 	delete(s.piSessions, sessionID)
 	s.piMu.Unlock()
-	if session == nil {
-		return nil
+	if session != nil {
+		session.stop()
 	}
-	session.writeMu.Lock()
-	defer session.writeMu.Unlock()
-	_ = session.stdin.Close()
-	if session.cmd.Process != nil {
-		_ = session.cmd.Process.Kill()
-	}
-	os.Remove(session.contextPath)
 	return nil
 }
 
@@ -197,7 +255,7 @@ func (s *piAssistantSession) readOutput(stdout, stderr io.ReadCloser) {
 	scanErr := scanner.Err()
 	waitErr := s.cmd.Wait()
 	diagnostics := <-stderrDone
-	os.Remove(s.contextPath)
+	s.cleanupFiles()
 	if scanErr != nil {
 		s.addEvent(PiAssistantEvent{Type: "error", Error: "Pi output failed: " + scanErr.Error()})
 	}
@@ -237,6 +295,20 @@ func (s *piAssistantSession) handleRecord(record map[string]any) {
 				s.addEvent(PiAssistantEvent{Type: "assistant_end", Text: text})
 			}
 		}
+	case "tool_execution_start":
+		toolName, _ := record["toolName"].(string)
+		if toolName == piDatabaseToolName {
+			s.addEvent(PiAssistantEvent{Type: "status", Text: "Pi is querying the database…"})
+		}
+	case "tool_execution_end":
+		toolName, _ := record["toolName"].(string)
+		if toolName == piDatabaseToolName {
+			if isError, _ := record["isError"].(bool); isError {
+				s.addEvent(PiAssistantEvent{Type: "status", Text: "Database query failed; Pi is reviewing the error…"})
+			} else {
+				s.addEvent(PiAssistantEvent{Type: "status", Text: "Database query complete; Pi is reviewing the results…"})
+			}
+		}
 	case "agent_start":
 		s.addEvent(PiAssistantEvent{Type: "agent_start"})
 	case "agent_settled":
@@ -248,6 +320,46 @@ func (s *piAssistantSession) handleRecord(record map[string]any) {
 		}
 	case "auto_retry_start":
 		s.addEvent(PiAssistantEvent{Type: "status", Text: "Retrying after a temporary model error…"})
+	}
+}
+
+func (s *piAssistantSession) stop() {
+	s.writeMu.Lock()
+	_ = s.stdin.Close()
+	if s.cmd.Process != nil {
+		_ = s.cmd.Process.Kill()
+	}
+	s.writeMu.Unlock()
+	if s.bridge != nil {
+		s.bridge.close()
+	}
+	s.cleanupFiles()
+}
+
+func (s *piAssistantSession) cleanupFiles() {
+	if s.bridge != nil {
+		s.bridge.close()
+	}
+	if s.contextPath != "" {
+		_ = os.Remove(s.contextPath)
+	}
+	if s.extensionPath != "" {
+		_ = os.Remove(s.extensionPath)
+	}
+}
+
+func (s *DatabaseService) stopPiAssistantsForProfileLocked(profileID string) {
+	s.piMu.Lock()
+	var sessions []*piAssistantSession
+	for id, session := range s.piSessions {
+		if session.profileID == profileID {
+			delete(s.piSessions, id)
+			sessions = append(sessions, session)
+		}
+	}
+	s.piMu.Unlock()
+	for _, session := range sessions {
+		session.stop()
 	}
 }
 
@@ -319,12 +431,6 @@ func (s *DatabaseService) stopAllPiAssistants() {
 	s.piSessions = make(map[string]*piAssistantSession)
 	s.piMu.Unlock()
 	for _, session := range sessions {
-		session.writeMu.Lock()
-		_ = session.stdin.Close()
-		if session.cmd.Process != nil {
-			_ = session.cmd.Process.Kill()
-		}
-		session.writeMu.Unlock()
-		os.Remove(session.contextPath)
+		session.stop()
 	}
 }

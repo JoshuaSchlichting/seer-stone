@@ -496,22 +496,26 @@ body {
   padding-top: 12px;
 }
 
-.query-confirmation-setting {
+.query-confirmation-setting,
+.pi-database-access-setting {
   margin-top: 5px;
 }
 
-.query-confirmation-setting .checkbox {
+.query-confirmation-setting .checkbox,
+.pi-database-access-setting .checkbox {
   color: var(--palette-ink);
   font-size: 11px;
   font-weight: 600;
 }
 
-.query-confirmation-setting input {
+.query-confirmation-setting input,
+.pi-database-access-setting input {
   margin-right: 5px;
   accent-color: var(--palette-primary);
 }
 
-.query-confirmation-setting .help {
+.query-confirmation-setting .help,
+.pi-database-access-setting .help {
   margin-top: 4px;
   font-size: 10px;
 }

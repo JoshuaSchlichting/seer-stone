@@ -22,17 +22,18 @@ import (
 )
 
 type ConnectionProfile struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Engine    string `json:"engine"`
-	Host      string `json:"host"`
-	Port      string `json:"port"`
-	Database  string `json:"database"`
-	Schema    string `json:"schema"`
-	Warehouse string `json:"warehouse"`
-	Role      string `json:"role"`
-	Username  string `json:"username"`
-	SSLMode   string `json:"sslMode"`
+	ID                    string `json:"id"`
+	Name                  string `json:"name"`
+	Engine                string `json:"engine"`
+	Host                  string `json:"host"`
+	Port                  string `json:"port"`
+	Database              string `json:"database"`
+	Schema                string `json:"schema"`
+	Warehouse             string `json:"warehouse"`
+	Role                  string `json:"role"`
+	Username              string `json:"username"`
+	SSLMode               string `json:"sslMode"`
+	AllowPiDatabaseAccess bool   `json:"allowPiDatabaseAccess"`
 }
 
 type QueryResult struct {
@@ -164,6 +165,9 @@ func (s *DatabaseService) SaveProfile(profile ConnectionProfile) (ConnectionProf
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if profile.ID != "" {
+		s.stopPiAssistantsForProfileLocked(profile.ID)
+	}
 	found := false
 	for i := range s.profiles {
 		if s.profiles[i].ID == profile.ID {
@@ -190,6 +194,7 @@ func (s *DatabaseService) DeleteProfile(id string) error {
 	}
 	for i, profile := range s.profiles {
 		if profile.ID == id {
+			s.stopPiAssistantsForProfileLocked(id)
 			s.closeProfilePoolsLocked(id)
 			s.profiles = append(s.profiles[:i], s.profiles[i+1:]...)
 			return s.persistLocked()

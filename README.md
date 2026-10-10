@@ -23,6 +23,10 @@ Select a profile, enter its password, and choose **Connect** to test it. The dat
 
 Query tabs and SQL text are saved locally per connection in the app's browser storage. Switching to a connection with no saved workspace opens a fresh `query.sql`; returning to a connection restores its tabs and queries. Query results are not persisted.
 
+## Pi SQL assistant
+
+The in-app Pi assistant receives the selected SQL dialect and loaded schema context, but not connection credentials or editor SQL. **Edit connection → Allow Pi to query this database** is off by default. When explicitly enabled, Pi receives one narrowly-scoped query tool backed by a loopback-only Seer Stone bridge; the database password remains in the app process and is never passed to Pi. Queries are limited to one read-only SQL statement, 30 seconds, 200 rows, and bounded result sizes. PostgreSQL/CockroachDB queries run in read-only transactions; Snowflake does not support read-only transactions in this driver, so use a database role with read-only grants for the strongest protection. Query results are sent to the configured Pi model when the tool is used. Disabling the option or editing/deleting a profile revokes its running bridge.
+
 PostgreSQL and CockroachDB use secure `verify-full` TLS by default. Use `disable` only for local development databases.
 
 ## Verify and regenerate bindings

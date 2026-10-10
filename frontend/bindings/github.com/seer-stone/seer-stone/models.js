@@ -89,6 +89,13 @@ export class ConnectionProfile {
              */
             this["sslMode"] = "";
         }
+        if (!("allowPiDatabaseAccess" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["allowPiDatabaseAccess"] = false;
+        }
 
         Object.assign(this, $$source);
     }

@@ -112,13 +112,17 @@ export function SendPiAssistantPrompt(sessionID, message) {
 }
 
 /**
- * StartPiAssistant launches Pi in RPC mode for the in-app SQL assistant panel.
- * The provided context must not contain credentials or SQL editor contents.
+ * StartPiAssistant launches Pi in RPC mode. The provided prompt context must not
+ * contain credentials or SQL editor contents. Database access is separately
+ * gated by the saved connection's explicit opt-in.
  * @param {string} context
+ * @param {string} profileID
+ * @param {string} password
+ * @param {string} database
  * @returns {$CancellablePromise<string>}
  */
-export function StartPiAssistant(context) {
-    return $Call.ByID(1974288369, context);
+export function StartPiAssistant(context, profileID, password, database) {
+    return $Call.ByID(1974288369, context, profileID, password, database);
 }
 
 /**
