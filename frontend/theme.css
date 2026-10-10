@@ -381,7 +381,7 @@ textarea:focus-visible {
 }
 
 .schema-browser .schema-icon,
-.schema-browser .schema-object-button.expanded .object-kind,
+.schema-browser .object-kind,
 .schema-browser .schema-expand-button:hover {
   color: var(--connection-accent, #8ac9b8);
 }
