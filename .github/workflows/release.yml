@@ -1,0 +1,127 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to publish (for example v1.0.0)
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            artifact: linux-amd64
+          - os: windows-2022
+            artifact: windows-amd64
+          - os: macos-14
+            artifact: macos-arm64
+          - os: macos-13
+            artifact: macos-amd64
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.28
+
+      - name: Build application
+        run: wails3 build
+
+      - name: Package release artifact (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          mkdir -p dist
+          test -x 'build/bin/seer-stone' || test -x 'build/bin/Seer Stone'
+          if test -x 'build/bin/seer-stone'; then cp 'build/bin/seer-stone' dist/seer-stone; else cp 'build/bin/Seer Stone' dist/seer-stone; fi
+          tar -C dist -czf "${{ matrix.artifact }}.tar.gz" seer-stone
+
+      - name: Package release artifact (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          $exe = Get-ChildItem -Path build/bin -Filter *.exe -Recurse | Select-Object -First 1
+          if (-not $exe) { throw 'Wails build did not produce an .exe in build/bin' }
+          Copy-Item $exe.FullName dist/seer-stone.exe
+          Compress-Archive -Path dist/seer-stone.exe -DestinationPath '${{ matrix.artifact }}.zip'
+
+      - name: Package release artifact (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          mkdir -p dist
+          app=$(find build/bin -maxdepth 3 -name '*.app' -type d -print -quit)
+          if [[ -n "$app" ]]; then
+            ditto -c -k --sequesterRsrc --keepParent "$app" "${{ matrix.artifact }}.zip"
+          else
+            executable=$(find build/bin -type f -perm -111 -print -quit)
+            test -n "$executable"
+            cp "$executable" dist/seer-stone
+            tar -C dist -czf "${{ matrix.artifact }}.tar.gz" seer-stone
+          fi
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            ${{ matrix.artifact }}.zip
+            ${{ matrix.artifact }}.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine release tag
+        id: release
+        shell: bash
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          REF: ${{ github.ref }}
+        run: |
+          if [[ -n "$INPUT_TAG" ]]; then tag="$INPUT_TAG"; else tag="${REF#refs/tags/}"; fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Download all platform artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --title "$TAG" --generate-notes --verify-tag || gh release upload "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --clobber
