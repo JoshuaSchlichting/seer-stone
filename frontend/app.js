@@ -926,7 +926,7 @@ function renderProfiles() {
     databaseSelect.append(option);
   }
   const isConnected = Boolean(profile && connectedIds.has(profile.id));
-  $("#changelog").classList.toggle("is-hidden", isConnected);
+  $("#changelog").classList.toggle("is-hidden", Boolean(profile));
   $("#connection-state-label").textContent = isConnected ? "Connected" : "Disconnected";
   $("#connection-state").classList.toggle("is-connected", isConnected);
   $("#connection-state-light").classList.toggle("connected", isConnected);
