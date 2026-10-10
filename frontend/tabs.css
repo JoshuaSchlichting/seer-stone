@@ -24,6 +24,12 @@
   border-bottom-color: var(--workspace-accent, var(--palette-primary, #187c73));
 }
 
+.pi-query-tab .query-tab-select {
+  max-width: 260px;
+  color: var(--workspace-accent, var(--palette-primary, #187c73));
+  font-weight: 600;
+}
+
 .query-tab-select,
 .query-tab-close,
 .new-query-tab {

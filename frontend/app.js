@@ -307,11 +307,18 @@ function renderQueryTabs() {
     const item = document.createElement("div");
     item.className = `query-tab pi-query-tab${piPanelActive ? " active" : ""}`;
     const select = document.createElement("button");
+    const assistant = piAssistantSessions.get(activePiProfileId);
+    const profile = profiles.find((entry) => entry.id === activePiProfileId);
+    const database = assistant.database || "database not selected";
+    const connection = profile?.name || "Connection";
+    const label = `✦ ${connection} / ${database}`;
     select.type = "button";
     select.className = "query-tab-select";
     select.setAttribute("role", "tab");
     select.setAttribute("aria-selected", String(piPanelActive));
-    select.textContent = "✦ Pi SQL";
+    select.setAttribute("aria-label", `Pi SQL assistant for ${connection}, database ${database}`);
+    select.title = `Pi SQL · ${connection} · ${database}`;
+    select.textContent = label;
     select.addEventListener("click", () => activatePiAssistantTab(activePiProfileId));
     item.append(select);
     container.append(item);
@@ -405,7 +412,7 @@ async function openPiAssistantTab() {
       const database = databaseSelect.value || selectedDatabases.get(profile.id) || profile.database || "";
       const confirmWrites = queryConfirmationPreferences[profile.id] !== false;
       const sessionId = await DatabaseService.StartPiAssistant(context, profile.id, password, database, confirmWrites);
-      assistant = { sessionId, context, messages: [], busy: false, stopped: false, status: profile.allowPiDatabaseAccess ? "Starting database tool…" : "No database access" };
+      assistant = { sessionId, context, database, messages: [], busy: false, stopped: false, status: profile.allowPiDatabaseAccess ? "Starting database tool…" : "No database access" };
       piAssistantSessions.set(profile.id, assistant);
     }
     activePiProfileId = profile.id;
@@ -425,7 +432,10 @@ function renderPiAssistant() {
   const engine = profile.engine || "cockroach";
   const dialect = ({ cockroach: "CockroachDB", postgres: "PostgreSQL", snowflake: "Snowflake" })[engine] || engine;
   const permissions = profile.allowPiDatabaseAccess ? (profile.allowPiDatabaseWrite ? "read/write" : "read-only") : "no DB access";
-  $("#pi-assistant-context").textContent = `${dialect} · ${databaseSelect.value || selectedDatabases.get(profile.id) || profile.database || "database not selected"} · ${permissions}`;
+  const sessionDatabase = assistant.database || "database not selected";
+  const selectedDatabase = databaseSelect.value;
+  const databaseNote = selectedDatabase && selectedDatabase !== assistant.database ? ` · selector now on ${selectedDatabase}` : "";
+  $("#pi-assistant-context").textContent = `${dialect} · Pi session database: ${sessionDatabase} · ${permissions}${databaseNote}`;
   $("#pi-assistant-status").textContent = assistant.stopped ? "Pi stopped" : assistant.busy ? (assistant.status || "Thinking…") : (assistant.status || "Ready");
   $("#pi-assistant-prompt").disabled = assistant.busy || assistant.stopped;
   $("#send-pi-prompt").disabled = assistant.busy || assistant.stopped;

@@ -37,6 +37,11 @@ type ConnectionProfile struct {
 	AllowPiDatabaseWrite  bool   `json:"allowPiDatabaseWrite"`
 }
 
+type localPiDatabasePermissions struct {
+	AllowPiDatabaseAccess bool `json:"allowPiDatabaseAccess"`
+	AllowPiDatabaseWrite  bool `json:"allowPiDatabaseWrite"`
+}
+
 type QueryResult struct {
 	Columns    []string `json:"columns"`
 	Rows       [][]any  `json:"rows"`
@@ -69,14 +74,16 @@ type databasePool struct {
 }
 
 type DatabaseService struct {
-	mu             sync.RWMutex
-	profiles       []ConnectionProfile
-	localPasswords map[string]string
-	localIDs       map[string]bool
-	pools          map[string]databasePool
-	piMu           sync.Mutex
-	piSessions     map[string]*piAssistantSession
-	file           string
+	mu                     sync.RWMutex
+	profiles               []ConnectionProfile
+	localPasswords         map[string]string
+	localIDs               map[string]bool
+	localPiPermissionsFile string
+	localPiPermissions     map[string]localPiDatabasePermissions
+	pools                  map[string]databasePool
+	piMu                   sync.Mutex
+	piSessions             map[string]*piAssistantSession
+	file                   string
 }
 
 func NewDatabaseService() (*DatabaseService, error) {
@@ -89,11 +96,13 @@ func NewDatabaseService() (*DatabaseService, error) {
 		return nil, fmt.Errorf("create config directory: %w", err)
 	}
 	service := &DatabaseService{
-		file:           filepath.Join(dir, "connections.json"),
-		localPasswords: make(map[string]string),
-		localIDs:       make(map[string]bool),
-		pools:          make(map[string]databasePool),
-		piSessions:     make(map[string]*piAssistantSession),
+		file:                   filepath.Join(dir, "connections.json"),
+		localPiPermissionsFile: filepath.Join(dir, "pi-permissions.json"),
+		localPiPermissions:     make(map[string]localPiDatabasePermissions),
+		localPasswords:         make(map[string]string),
+		localIDs:               make(map[string]bool),
+		pools:                  make(map[string]databasePool),
+		piSessions:             make(map[string]*piAssistantSession),
 	}
 	data, err := os.ReadFile(service.file)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -106,6 +115,9 @@ func NewDatabaseService() (*DatabaseService, error) {
 	}
 	if service.profiles == nil {
 		service.profiles = []ConnectionProfile{}
+	}
+	if err := service.loadLocalPiPermissions(); err != nil {
+		return nil, err
 	}
 	if err := service.loadLocalConnections("connections.local.json"); err != nil {
 		return nil, err
@@ -186,6 +198,19 @@ func (s *DatabaseService) SaveProfile(profile ConnectionProfile) (ConnectionProf
 	if !found {
 		s.profiles = append(s.profiles, profile)
 	}
+	if s.localIDs[profile.ID] {
+		if s.localPiPermissions == nil {
+			s.localPiPermissions = make(map[string]localPiDatabasePermissions)
+		}
+		if profile.AllowPiDatabaseAccess || profile.AllowPiDatabaseWrite {
+			s.localPiPermissions[profile.ID] = localPiDatabasePermissions{
+				AllowPiDatabaseAccess: profile.AllowPiDatabaseAccess,
+				AllowPiDatabaseWrite:  profile.AllowPiDatabaseWrite,
+			}
+		} else {
+			delete(s.localPiPermissions, profile.ID)
+		}
+	}
 	if err := s.persistLocked(); err != nil {
 		return ConnectionProfile{}, err
 	}
@@ -228,6 +253,43 @@ func (s *DatabaseService) persistLocked() error {
 	}
 	if err := os.WriteFile(s.file, data, 0600); err != nil {
 		return fmt.Errorf("save connection profiles: %w", err)
+	}
+	return s.persistLocalPiPermissionsLocked()
+}
+
+func (s *DatabaseService) loadLocalPiPermissions() error {
+	if s.localPiPermissions == nil {
+		s.localPiPermissions = make(map[string]localPiDatabasePermissions)
+	}
+	data, err := os.ReadFile(s.localPiPermissionsFile)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("read Pi database permissions: %w", err)
+	}
+	if err := json.Unmarshal(data, &s.localPiPermissions); err != nil {
+		return fmt.Errorf("parse Pi database permissions: %w", err)
+	}
+	return nil
+}
+
+func (s *DatabaseService) persistLocalPiPermissionsLocked() error {
+	if s.localPiPermissionsFile == "" && len(s.localPiPermissions) == 0 {
+		return nil
+	}
+	if len(s.localPiPermissions) == 0 {
+		if err := os.Remove(s.localPiPermissionsFile); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("remove Pi database permissions: %w", err)
+		}
+		return nil
+	}
+	data, err := json.MarshalIndent(s.localPiPermissions, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode Pi database permissions: %w", err)
+	}
+	if err := os.WriteFile(s.localPiPermissionsFile, data, 0600); err != nil {
+		return fmt.Errorf("save Pi database permissions: %w", err)
 	}
 	return nil
 }
@@ -564,6 +626,10 @@ func (s *DatabaseService) loadLocalConnections(path string) error {
 		profile := ConnectionProfile{
 			ID: id, Name: entry.Name, Host: u.Hostname(), Port: port,
 			Database: strings.TrimPrefix(u.Path, "/"), Username: username, SSLMode: sslMode,
+		}
+		if permissions, ok := s.localPiPermissions[id]; ok {
+			profile.AllowPiDatabaseAccess = permissions.AllowPiDatabaseAccess
+			profile.AllowPiDatabaseWrite = permissions.AllowPiDatabaseWrite
 		}
 		if profile.Name == "" || profile.Database == "" || profile.Username == "" || password == "" {
 			return fmt.Errorf("connection %q in %s is missing a name or required dbURI fields", entry.Name, path)

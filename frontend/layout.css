@@ -692,8 +692,8 @@ body {
   padding: 4px 7px;
   border: 1px solid var(--line);
   border-radius: 4px;
-  background: white;
-  color: var(--ink);
+  background: var(--bg);
+  color: var(--palette-primary, #187c73);
   font-size: 10px;
   cursor: pointer;
 }
