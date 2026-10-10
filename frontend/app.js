@@ -256,6 +256,7 @@ function persistQueryWorkspace(id = selectedId) {
   queryWorkspaceStore[id] = {
     tabs: queryTabs.map(({ id: tabId, name, sql }) => ({ id: tabId, name, sql })),
     activeTabId,
+    activePanel: piPanelActive ? "pi" : "sql",
     nextTabId,
   };
   try { localStorage.setItem("seer-stone-query-workspaces", JSON.stringify(queryWorkspaceStore)); } catch {}
@@ -278,11 +279,11 @@ function loadQueryWorkspace(id, preserveScratch = false) {
     activeTabId = 1;
     nextTabId = 2;
   }
-  piPanelActive = false;
-  $("#pi-assistant-panel").classList.add("is-hidden");
-  $(".editor-wrap").classList.remove("is-hidden");
-  $(".editor-footer").classList.remove("is-hidden");
-  $("#editor-tools").classList.remove("is-hidden");
+  piPanelActive = saved?.activePanel === "pi" && Boolean(piTranscriptStore[id]);
+  $("#pi-assistant-panel").classList.toggle("is-hidden", !piPanelActive);
+  $(".editor-wrap").classList.toggle("is-hidden", piPanelActive);
+  $(".editor-footer").classList.toggle("is-hidden", piPanelActive);
+  $("#editor-tools").classList.toggle("is-hidden", piPanelActive);
   $("#sql-editor").value = activeQueryTab().sql;
   renderQueryTabs();
   showTabOutput(activeQueryTab());
@@ -302,7 +303,7 @@ function switchQueryWorkspace(id) {
 function showTabOutput(tab) {
   if (piPanelActive) {
     const assistant = piAssistantSessions.get(activePiProfileId);
-    const result = assistant?.activeResult;
+    const result = assistant?.activeResult || piTranscriptStore[activePiProfileId]?.activeResult;
     if (result) renderResult(result);
     else clearResultOutput("Pi results will appear here");
     return;
@@ -413,9 +414,9 @@ function activatePiAssistantTab(profileId = activePiProfileId) {
     return;
   }
   saveActiveQuery();
-  persistQueryWorkspace();
   activePiProfileId = profileId;
   piPanelActive = true;
+  persistQueryWorkspace();
   renderQueryTabs();
   $(".editor-wrap").classList.add("is-hidden");
   $(".editor-footer").classList.add("is-hidden");
