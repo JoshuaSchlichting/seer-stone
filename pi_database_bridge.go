@@ -621,11 +621,14 @@ export default function (pi) {
     },
   });
   pi.on("session_start", (_event, ctx) => {
+    // This isolated SQL assistant must expose exactly its database tool,
+    // regardless of the user's normal coding-assistant tool preferences.
+    pi.setActiveTools([%q]);
     if (!pi.getActiveTools().includes(%q)) throw new Error("Seer Stone database tool is not active in Pi");
     ctx.ui.setStatus("seer_stone_database", "Seer Stone query tool ready");
   });
 }
-`, string(endpointJSON), string(tokenJSON), piDatabaseToolName, string(descriptionJSON), !allowWrites, allowWrites, piDatabaseToolName)
+`, string(endpointJSON), string(tokenJSON), piDatabaseToolName, string(descriptionJSON), !allowWrites, allowWrites, piDatabaseToolName, piDatabaseToolName)
 	return []byte(source), nil
 }
 
