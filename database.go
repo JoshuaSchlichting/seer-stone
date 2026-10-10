@@ -34,6 +34,7 @@ type ConnectionProfile struct {
 	Username              string `json:"username"`
 	SSLMode               string `json:"sslMode"`
 	AllowPiDatabaseAccess bool   `json:"allowPiDatabaseAccess"`
+	AllowPiDatabaseWrite  bool   `json:"allowPiDatabaseWrite"`
 }
 
 type QueryResult struct {
@@ -145,6 +146,9 @@ func (s *DatabaseService) SaveProfile(profile ConnectionProfile) (ConnectionProf
 	if profile.Name == "" || profile.Host == "" || profile.Username == "" || (profile.Engine != "snowflake" && profile.Database == "") {
 		return ConnectionProfile{}, errors.New("name, host/account, username, and database (except for Snowflake) are required")
 	}
+	if profile.AllowPiDatabaseWrite && !profile.AllowPiDatabaseAccess {
+		return ConnectionProfile{}, errors.New("Pi write access requires Pi database access to be enabled")
+	}
 	if profile.Port == "" {
 		if profile.Engine == "postgres" {
 			profile.Port = "5432"
@@ -171,7 +175,9 @@ func (s *DatabaseService) SaveProfile(profile ConnectionProfile) (ConnectionProf
 	found := false
 	for i := range s.profiles {
 		if s.profiles[i].ID == profile.ID {
-			s.closeProfilePoolsLocked(profile.ID)
+			if !sameDatabaseConnectionSettings(s.profiles[i], profile) {
+				s.closeProfilePoolsLocked(profile.ID)
+			}
 			s.profiles[i] = profile
 			found = true
 			break
@@ -184,6 +190,12 @@ func (s *DatabaseService) SaveProfile(profile ConnectionProfile) (ConnectionProf
 		return ConnectionProfile{}, err
 	}
 	return profile, nil
+}
+
+func sameDatabaseConnectionSettings(a, b ConnectionProfile) bool {
+	return a.Engine == b.Engine && a.Host == b.Host && a.Port == b.Port &&
+		a.Database == b.Database && a.Schema == b.Schema && a.Warehouse == b.Warehouse &&
+		a.Role == b.Role && a.Username == b.Username && a.SSLMode == b.SSLMode
 }
 
 func (s *DatabaseService) DeleteProfile(id string) error {

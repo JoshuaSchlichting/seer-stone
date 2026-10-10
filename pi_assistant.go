@@ -17,9 +17,11 @@ import (
 )
 
 type PiAssistantEvent struct {
-	Type  string `json:"type"`
-	Text  string `json:"text,omitempty"`
-	Error string `json:"error,omitempty"`
+	Type       string `json:"type"`
+	Text       string `json:"text,omitempty"`
+	Error      string `json:"error,omitempty"`
+	ApprovalID string `json:"approvalId,omitempty"`
+	Query      string `json:"query,omitempty"`
 }
 
 type piAssistantSession struct {
@@ -38,7 +40,7 @@ type piAssistantSession struct {
 // StartPiAssistant launches Pi in RPC mode. The provided prompt context must not
 // contain credentials or SQL editor contents. Database access is separately
 // gated by the saved connection's explicit opt-in.
-func (s *DatabaseService) StartPiAssistant(context, profileID, password, database string) (string, error) {
+func (s *DatabaseService) StartPiAssistant(context, profileID, password, database string, confirmWrites bool) (string, error) {
 	if strings.TrimSpace(context) == "" {
 		return "", fmt.Errorf("database context is empty")
 	}
@@ -56,11 +58,11 @@ func (s *DatabaseService) StartPiAssistant(context, profileID, password, databas
 	var bridge *piDatabaseBridge
 	var extensionPath string
 	if profile.AllowPiDatabaseAccess {
-		bridge, endpoint, err := startPiDatabaseBridge(s, profileID, password, profile.Database)
+		bridge, endpoint, err := startPiDatabaseBridge(s, profileID, password, profile.Database, profile.AllowPiDatabaseWrite, confirmWrites)
 		if err != nil {
 			return "", err
 		}
-		extensionPath, err = createPiDatabaseExtension(endpoint, bridge.token)
+		extensionPath, err = createPiDatabaseExtension(endpoint, bridge.token, profile.AllowPiDatabaseWrite, confirmWrites)
 		if err != nil {
 			bridge.close()
 			return "", err
@@ -142,6 +144,11 @@ func (s *DatabaseService) StartPiAssistant(context, profileID, password, databas
 		id: sessionID, profileID: profileID, cmd: cmd, stdin: stdin,
 		contextPath: contextPath, extensionPath: extensionPath, bridge: bridge,
 	}
+	if bridge != nil {
+		bridge.onApproval = func(approvalID, query string) {
+			session.addEvent(PiAssistantEvent{Type: "write_approval", ApprovalID: approvalID, Query: query})
+		}
+	}
 	s.mu.RLock()
 	var currentProfile ConnectionProfile
 	profileFound := false
@@ -182,6 +189,18 @@ func (s *DatabaseService) SendPiAssistantPrompt(sessionID, message string) error
 		return fmt.Errorf("Pi assistant session is no longer available")
 	}
 	return session.writeRecord(map[string]any{"type": "prompt", "message": message})
+}
+
+// ResolvePiWriteApproval returns the user's one-time decision for a Pi write request.
+func (s *DatabaseService) ResolvePiWriteApproval(sessionID, approvalID string, approved bool) error {
+	session := s.piSession(sessionID)
+	if session == nil || session.bridge == nil {
+		return errors.New("Pi database session is no longer available")
+	}
+	if !session.bridge.resolveApproval(approvalID, approved) {
+		return errors.New("write approval request has expired")
+	}
+	return nil
 }
 
 // StopPiAssistant closes one in-app Pi RPC session.
@@ -318,6 +337,24 @@ func (s *piAssistantSession) handleRecord(record map[string]any) {
 			text, _ := record["error"].(string)
 			s.addEvent(PiAssistantEvent{Type: "error", Error: text})
 		}
+	case "extension_ui_request":
+		method, _ := record["method"].(string)
+		statusKey, _ := record["statusKey"].(string)
+		statusText, _ := record["statusText"].(string)
+		if method == "setStatus" && statusKey == "seer_stone_database" && statusText != "" {
+			s.addEvent(PiAssistantEvent{Type: "status", Text: statusText})
+		}
+	case "extension_error":
+		name, _ := record["extensionPath"].(string)
+		event, _ := record["event"].(string)
+		message, _ := record["error"].(string)
+		if name == "" {
+			name = "Pi database tool"
+		}
+		if event != "" {
+			message = event + ": " + message
+		}
+		s.addEvent(PiAssistantEvent{Type: "error", Error: name + " failed to load: " + message})
 	case "auto_retry_start":
 		s.addEvent(PiAssistantEvent{Type: "status", Text: "Retrying after a temporary model error…"})
 	}

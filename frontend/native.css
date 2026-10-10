@@ -52,6 +52,12 @@ select,
   cursor: text;
 }
 
+.pi-assistant-messages button {
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: pointer;
+}
+
 input::selection,
 textarea::selection,
 .results-table-wrap ::selection {

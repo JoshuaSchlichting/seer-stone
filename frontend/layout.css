@@ -497,25 +497,29 @@ body {
 }
 
 .query-confirmation-setting,
-.pi-database-access-setting {
+.pi-database-access-setting,
+.pi-database-write-setting {
   margin-top: 5px;
 }
 
 .query-confirmation-setting .checkbox,
-.pi-database-access-setting .checkbox {
+.pi-database-access-setting .checkbox,
+.pi-database-write-setting .checkbox {
   color: var(--palette-ink);
   font-size: 11px;
   font-weight: 600;
 }
 
 .query-confirmation-setting input,
-.pi-database-access-setting input {
+.pi-database-access-setting input,
+.pi-database-write-setting input {
   margin-right: 5px;
   accent-color: var(--palette-primary);
 }
 
 .query-confirmation-setting .help,
-.pi-database-access-setting .help {
+.pi-database-access-setting .help,
+.pi-database-write-setting .help {
   margin-top: 4px;
   font-size: 10px;
 }
@@ -599,14 +603,57 @@ body {
 
 .pi-message.user {
   align-self: flex-end;
-  border-color: var(--palette-border, var(--line));
-  background: var(--palette-soft, var(--bg));
+  border-color: var(--palette-primary, #187c73);
+  background: var(--palette-primary, #187c73);
+  color: #fff;
+}
+
+.pi-message.user strong {
+  color: #fff;
 }
 
 .pi-message.error {
   border-color: #e8c9c5;
   background: #fff5f3;
   color: #963f3a;
+}
+
+.pi-message.approval {
+  max-width: 94%;
+  border-color: #e8c9c5;
+  background: var(--bg);
+}
+
+.pi-message.approval pre {
+  max-height: 220px;
+  overflow: auto;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--ink);
+  font: 10px/1.55 'DM Mono', monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.pi-approval-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.pi-approval-actions .button {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 9px;
+}
+
+.pi-approval-actions .button:not(.cancel-button) {
+  border: 0;
+  background: var(--workspace-accent, var(--palette-primary, #187c73));
+  color: #fff;
 }
 
 .pi-message strong {
@@ -619,6 +666,36 @@ body {
 .pi-message div {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.pi-code-block {
+  position: relative;
+  margin: 8px 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+}
+
+.pi-code-block pre {
+  margin: 0;
+  padding-right: 48px;
+  overflow-x: auto;
+  white-space: pre;
+  font: 11px/1.5 'DM Mono', monospace;
+}
+
+.pi-copy-code {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: white;
+  color: var(--ink);
+  font-size: 10px;
+  cursor: pointer;
 }
 
 .pi-assistant-form {

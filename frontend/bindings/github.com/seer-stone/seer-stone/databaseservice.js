@@ -79,6 +79,17 @@ export function Profiles() {
 }
 
 /**
+ * ResolvePiWriteApproval returns the user's one-time decision for a Pi write request.
+ * @param {string} sessionID
+ * @param {string} approvalID
+ * @param {boolean} approved
+ * @returns {$CancellablePromise<void>}
+ */
+export function ResolvePiWriteApproval(sessionID, approvalID, approved) {
+    return $Call.ByID(2102490581, sessionID, approvalID, approved);
+}
+
+/**
  * @param {string} id
  * @param {string} password
  * @param {string} database
@@ -119,10 +130,11 @@ export function SendPiAssistantPrompt(sessionID, message) {
  * @param {string} profileID
  * @param {string} password
  * @param {string} database
+ * @param {boolean} confirmWrites
  * @returns {$CancellablePromise<string>}
  */
-export function StartPiAssistant(context, profileID, password, database) {
-    return $Call.ByID(1974288369, context, profileID, password, database);
+export function StartPiAssistant(context, profileID, password, database, confirmWrites) {
+    return $Call.ByID(1974288369, context, profileID, password, database, confirmWrites);
 }
 
 /**

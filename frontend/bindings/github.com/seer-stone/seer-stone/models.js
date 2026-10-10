@@ -96,6 +96,13 @@ export class ConnectionProfile {
              */
             this["allowPiDatabaseAccess"] = false;
         }
+        if (!("allowPiDatabaseWrite" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["allowPiDatabaseWrite"] = false;
+        }
 
         Object.assign(this, $$source);
     }
@@ -271,6 +278,20 @@ export class PiAssistantEvent {
              * @type {string | undefined}
              */
             this["error"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["approvalId"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["query"] = undefined;
         }
 
         Object.assign(this, $$source);
