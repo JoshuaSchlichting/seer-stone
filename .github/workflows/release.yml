@@ -57,6 +57,8 @@ jobs:
           # Keep Go's compiler process count within the macOS runner's limits.
           GOFLAGS: -p=1
           GOMAXPROCS: 1
+          GOGC: 50
+          GOMEMLIMIT: 4GiB
         run: wails3 build
 
       - name: Package release artifact (Linux)
