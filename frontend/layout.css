@@ -163,7 +163,29 @@ body {
 }
 
 .results-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   flex: 0 0 auto;
+}
+
+.results-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.result-action {
+  height: 27px;
+  border-color: var(--line);
+  color: var(--teal);
+  font-size: 10px;
+}
+
+.result-action:hover {
+  border-color: var(--teal);
+  color: var(--teal-dark);
 }
 
 .result-placeholder,

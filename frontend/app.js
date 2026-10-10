@@ -1010,9 +1010,52 @@ function escapeHTML(value) {
   return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 }
 
+function csvValue(value) {
+  if (value === null || value === undefined) return "";
+  const text = typeof value === "object" ? JSON.stringify(value) : String(value);
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function resultAsCSV(result) {
+  return [result.columns.map(csvValue).join(","), ...result.rows.map((row) => result.columns.map((_, index) => csvValue(row[index])).join(","))].join("\r\n");
+}
+
+$("#copy-results-csv").addEventListener("click", async () => {
+  const result = currentDisplayedResult();
+  if (!result) return;
+  try {
+    await navigator.clipboard.writeText(resultAsCSV(result));
+    showToast("Results copied as CSV.");
+  } catch {
+    showToast("Could not copy results to clipboard.", true);
+  }
+});
+
+$("#save-results-csv").addEventListener("click", () => {
+  const result = currentDisplayedResult();
+  if (!result) return;
+  const blob = new Blob(["\\uFEFF", resultAsCSV(result)], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "results.csv";
+  link.click();
+  URL.revokeObjectURL(url);
+});
+
+function currentDisplayedResult() {
+  if ($("#results-table-wrap").classList.contains("is-hidden")) return null;
+  return piPanelActive && activePiProfileId
+    ? (piAssistantSessions.get(activePiProfileId)?.activeResult || piTranscriptStore[activePiProfileId]?.activeResult)
+    : activeQueryTab()?.result;
+}
+
 function renderResult(result) {
   const wrap = $("#results-table-wrap");
   const state = $("#result-state");
+  const hasRows = Boolean(result.columns?.length);
+  $("#copy-results-csv").classList.toggle("is-hidden", !hasRows);
+  $("#save-results-csv").classList.toggle("is-hidden", !hasRows);
   state.classList.add("is-hidden");
   wrap.classList.remove("is-hidden");
   if (!result.columns?.length) {
