@@ -58,6 +58,8 @@ workspaceSplitter.addEventListener("keydown", (event) => {
   applyWorkspaceSplit(queryPaneRatio + (event.key === "ArrowDown" ? 2 : -2));
 });
 const connectionContextMenu = $("#connection-context-menu");
+const schemaObjectMenu = $("#schema-object-menu");
+let contextSchemaObject = null;
 let contextProfileId = "";
 const toggleConnectionsButton = $("#toggle-connections");
 const connectionSectionBody = $("#connection-section-body");
@@ -78,6 +80,25 @@ document.addEventListener("contextmenu", (event) => {
 });
 document.addEventListener("click", (event) => {
   if (!event.target.closest("#connection-context-menu")) hideConnectionContextMenu();
+  if (!event.target.closest("#schema-object-menu")) schemaObjectMenu.classList.add("is-hidden");
+});
+schemaObjectMenu.addEventListener("click", async (event) => {
+  const action = event.target.closest("[data-schema-action]")?.dataset.schemaAction;
+  if (!action || !contextSchemaObject) return;
+  const { schema, object } = contextSchemaObject;
+  const qualified = `${quoteIdentifier(schema.name)}.${quoteIdentifier(object.name)}`;
+  schemaObjectMenu.classList.add("is-hidden");
+  if (action === "preview") {
+    const query = `SELECT * FROM ${qualified} LIMIT 50;`;
+    executeQuery(query, `${schema.name}.${object.name}`);
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(action === "copy-name" ? object.name : `${schema.name}.${object.name}`);
+    showToast("Copied to clipboard.");
+  } catch {
+    showToast("Could not copy to clipboard.", true);
+  }
 });
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") hideConnectionContextMenu();
@@ -322,14 +343,13 @@ function renderQueryTabs() {
     const assistant = piAssistantSessions.get(activePiProfileId);
     const profile = profiles.find((entry) => entry.id === activePiProfileId);
     const database = assistant.database || "database not selected";
-    const connection = profile?.name || "Connection";
-    const label = `✦ ${connection} / ${database}`;
+    const label = `Pi | ${database}`;
     select.type = "button";
     select.className = "query-tab-select";
     select.setAttribute("role", "tab");
     select.setAttribute("aria-selected", String(piPanelActive));
-    select.setAttribute("aria-label", `Pi SQL assistant for ${connection}, database ${database}`);
-    select.title = `Pi SQL · ${connection} · ${database}`;
+    select.setAttribute("aria-label", `Pi for ${database}`);
+    select.title = `Pi | ${database}`;
     select.textContent = label;
     select.addEventListener("click", () => activatePiAssistantTab(activePiProfileId));
     item.append(select);
@@ -1073,11 +1093,13 @@ function renderSchemaTree(message = "") {
         objectButton.innerHTML = `<span class="object-kind">${kindIcon}</span><span class="object-name"></span>`;
         objectButton.querySelector(".object-name").textContent = object.name;
         objectButton.title = `Preview ${object.kind} · ${object.columns.length} columns`;
-        objectButton.addEventListener("click", () => {
-          const query = `SELECT * FROM ${quoteIdentifier(schema.name)}.${quoteIdentifier(object.name)} LIMIT 50;`;
-          $("#sql-editor").value = query;
-          saveActiveQuery();
-          executeQuery(query, `${schema.name}.${object.name}`);
+        objectButton.title = `${object.kind} · ${object.columns.length} columns`;
+        objectButton.addEventListener("contextmenu", (event) => {
+          event.preventDefault();
+          contextSchemaObject = { schema, object };
+          schemaObjectMenu.classList.remove("is-hidden");
+          schemaObjectMenu.style.left = `${Math.min(event.clientX, innerWidth - schemaObjectMenu.offsetWidth - 8)}px`;
+          schemaObjectMenu.style.top = `${Math.min(event.clientY, innerHeight - schemaObjectMenu.offsetHeight - 8)}px`;
         });
         const expandButton = document.createElement("button");
         expandButton.className = "schema-expand-button";
