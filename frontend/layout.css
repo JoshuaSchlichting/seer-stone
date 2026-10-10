@@ -668,6 +668,32 @@ body {
   overflow-wrap: anywhere;
 }
 
+.pi-result-disclosure {
+  display: block;
+  margin-top: 7px;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: 10px 'DM Mono', monospace;
+  text-align: left;
+}
+
+.pi-result-disclosure:hover { color: var(--palette-primary, #187c73); }
+.pi-result-payload {
+  max-height: 180px;
+  overflow: auto;
+  margin: 4px 0 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--ink);
+  font: 9px/1.5 'DM Mono', monospace;
+  white-space: pre;
+}
+
 .pi-code-block {
   position: relative;
   margin: 8px 0;
