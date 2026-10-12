@@ -963,7 +963,7 @@ function openModal(profile = null) {
     $("#profile-database").value = profile.database || "";
     $("#profile-username").value = profile.username;
     $("#connection-modal-title").textContent = "Edit connection";
-    $("#connection-modal-subtitle").textContent = "Update this connection’s settings. Passwords remain in memory only.";
+    $("#connection-modal-subtitle").textContent = "Update this connection’s settings. Passwords are stored separately from the profile; use the system keyring option when connecting to remember one.";
     $("#save-profile").textContent = "Save changes";
   } else {
     $("#connection-modal-title").textContent = "New connection";
@@ -985,12 +985,13 @@ function closeModal() {
   modal.classList.remove("is-active");
 }
 
-function openPasswordModal() {
+async function openPasswordModal() {
   const profile = activeProfile();
   if (!profile) return;
   $("#password-modal-title").textContent = `Connect to ${profile.name}`;
   $("#password-error").textContent = "";
   passwordInput.value = passwords.get(profile.id) || "";
+  $("#remember-password").checked = await DatabaseService.HasCredential(profile.id);
   passwordModal.classList.add("is-active");
   passwordInput.focus();
 }
@@ -1480,7 +1481,7 @@ $("#connection-form").addEventListener("submit", async (event) => {
     renderProfiles();
     if (!connectionChanged && switchingProfile && connectedIds.has(saved.id)) await refreshSchema();
     closeModal();
-    showToast(isEditing ? "Connection updated. Credentials remain in memory only." : "Connection saved. Credentials remain in memory only.");
+    showToast(isEditing ? "Connection updated. Passwords are managed separately." : "Connection saved. Passwords are managed separately.");
   } catch (error) {
     $("#profile-error").textContent = String(error);
   } finally {
@@ -1536,6 +1537,16 @@ $("#password-form").addEventListener("submit", async (event) => {
     return;
   }
   passwords.set(selectedId, passwordInput.value);
+  try {
+    if ($("#remember-password").checked) {
+      await DatabaseService.SaveCredential(selectedId, passwordInput.value);
+    } else {
+      await DatabaseService.DeleteCredential(selectedId);
+    }
+  } catch (error) {
+    $("#password-error").textContent = `Could not save credential: ${error}`;
+    return;
+  }
   closePasswordModal();
   renderProfiles();
   await connectSelected();

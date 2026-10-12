@@ -16,10 +16,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/99designs/keyring"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/snowflakedb/gosnowflake"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 type ConnectionProfile struct {
@@ -78,6 +79,7 @@ type DatabaseService struct {
 	mu                     sync.RWMutex
 	profiles               []ConnectionProfile
 	localPasswords         map[string]string
+	credentialStore        keyring.Keyring
 	localIDs               map[string]bool
 	localPiPermissionsFile string
 	localPiPermissions     map[string]localPiDatabasePermissions
@@ -96,7 +98,12 @@ func NewDatabaseService() (*DatabaseService, error) {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, fmt.Errorf("create config directory: %w", err)
 	}
+	credentialStore, err := keyring.Open(keyring.Config{ServiceName: "Seer Stone", AllowedBackends: []keyring.BackendType{keyring.KeychainBackend, keyring.SecretServiceBackend, keyring.WinCredBackend}})
+	if err != nil {
+		return nil, fmt.Errorf("open system credential store: %w", err)
+	}
 	service := &DatabaseService{
+		credentialStore:        credentialStore,
 		file:                   filepath.Join(dir, "connections.json"),
 		localPiPermissionsFile: filepath.Join(dir, "pi-permissions.json"),
 		localPiPermissions:     make(map[string]localPiDatabasePermissions),
@@ -140,11 +147,38 @@ func (s *DatabaseService) Profiles() []ConnectionProfile {
 	return append([]ConnectionProfile{}, s.profiles...)
 }
 
-// LocalPassword returns credentials loaded from the gitignored local connection file.
+// LocalPassword returns credentials loaded from the gitignored local connection file or system keyring.
 func (s *DatabaseService) LocalPassword(id string) string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.localPasswords[id]
+	if password := s.localPasswords[id]; password != "" {
+		return password
+	}
+	item, err := s.credentialStore.Get("connection:" + id)
+	if err != nil {
+		return ""
+	}
+	return string(item.Data)
+}
+
+func (s *DatabaseService) HasCredential(id string) bool {
+	_, err := s.credentialStore.Get("connection:" + id)
+	return err == nil
+}
+
+func (s *DatabaseService) SaveCredential(id, password string) error {
+	if password == "" {
+		return errors.New("password cannot be empty")
+	}
+	return s.credentialStore.Set(keyring.Item{Key: "connection:" + id, Label: "Seer Stone database password", Data: []byte(password)})
+}
+
+func (s *DatabaseService) DeleteCredential(id string) error {
+	err := s.credentialStore.Remove("connection:" + id)
+	if errors.Is(err, keyring.ErrKeyNotFound) {
+		return nil
+	}
+	return err
 }
 
 func (s *DatabaseService) SaveProfile(profile ConnectionProfile) (ConnectionProfile, error) {

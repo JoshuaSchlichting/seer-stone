@@ -33,6 +33,14 @@ export function Databases(id, password) {
  * @param {string} id
  * @returns {$CancellablePromise<void>}
  */
+export function DeleteCredential(id) {
+    return $Call.ByID(1417812486, id);
+}
+
+/**
+ * @param {string} id
+ * @returns {$CancellablePromise<void>}
+ */
 export function DeleteProfile(id) {
     return $Call.ByID(4275978240, id);
 }
@@ -50,7 +58,15 @@ export function ExploreSchema(id, password, database) {
 }
 
 /**
- * LocalPassword returns credentials loaded from the gitignored local connection file.
+ * @param {string} id
+ * @returns {$CancellablePromise<boolean>}
+ */
+export function HasCredential(id) {
+    return $Call.ByID(1570025973, id);
+}
+
+/**
+ * LocalPassword returns credentials loaded from the gitignored local connection file or system keyring.
  * @param {string} id
  * @returns {$CancellablePromise<string>}
  */
@@ -67,13 +83,6 @@ export function PiAssistantEvents(sessionID) {
     return $Call.ByID(3073914764, sessionID).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType4($result);
     }));
-}
-
-/**
- * @returns {$CancellablePromise<$models.ConnectionProfile[]>}
- */
-export function SaveCSVFile(contents) {
-    return $Call.ByID(1455163189, contents);
 }
 
 /**
@@ -107,6 +116,23 @@ export function RunQuery(id, password, database, query) {
     return $Call.ByID(3342371831, id, password, database, query).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType7($result);
     }));
+}
+
+/**
+ * @param {string} contents
+ * @returns {$CancellablePromise<void>}
+ */
+export function SaveCSVFile(contents) {
+    return $Call.ByID(1455163189, contents);
+}
+
+/**
+ * @param {string} id
+ * @param {string} password
+ * @returns {$CancellablePromise<void>}
+ */
+export function SaveCredential(id, password) {
+    return $Call.ByID(836206484, id, password);
 }
 
 /**
