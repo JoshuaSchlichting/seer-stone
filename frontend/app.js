@@ -367,7 +367,7 @@ function renderQueryTabs() {
     }
     container.append(item);
   }
-  if (activePiProfileId && (piAssistantSessions.has(activePiProfileId) || piTranscriptStore[activePiProfileId])) {
+  if (activePiProfileId) {
     const item = document.createElement("div");
     item.className = `query-tab pi-query-tab${piPanelActive ? " active" : ""}`;
     const select = document.createElement("button");
