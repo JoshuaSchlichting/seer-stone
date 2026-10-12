@@ -1648,7 +1648,17 @@ $("#confirm-query-execution").addEventListener("click", () => {
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && queryConfirmationModal.classList.contains("is-active")) closeQueryConfirmation();
 });
-$("#sql-editor").addEventListener("input", () => persistQueryWorkspace());
+const sqlEditor = $("#sql-editor");
+const lineNumbers = $(".line-numbers");
+function updateSqlLineNumbers() {
+  const lineCount = sqlEditor.value.split("\n").length;
+  lineNumbers.innerHTML = Array.from({ length: lineCount }, (_, index) => index + 1).join("<br>");
+}
+sqlEditor.addEventListener("input", () => {
+  updateSqlLineNumbers();
+  persistQueryWorkspace();
+});
+updateSqlLineNumbers();
 $("#add-query-tab").addEventListener("click", addQueryTab);
 $("#open-pi-assistant").addEventListener("click", openPiAssistantTab);
 $("#pi-assistant-form").addEventListener("submit", async (event) => {

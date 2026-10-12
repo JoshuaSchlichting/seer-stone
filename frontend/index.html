@@ -56,7 +56,7 @@
             <div id="pi-assistant-messages" class="pi-assistant-messages" role="log" aria-live="polite"><div class="pi-message assistant"><strong>Pi</strong><div>Describe the query you need. I have the selected database dialect and loaded schema context, but cannot access or execute against your database.</div></div></div>
             <form id="pi-assistant-form" class="pi-assistant-form"><textarea id="pi-assistant-prompt" rows="2" placeholder="Ask Pi to write or explain SQL…" aria-label="Message Pi"></textarea><button id="send-pi-prompt" class="button" type="submit">Send</button></form>
           </section>
-          <div class="editor-wrap"><div class="line-numbers">1<br>2<br>3<br>4<br>5</div><textarea id="sql-editor" spellcheck="false" aria-label="SQL query editor">SELECT current_database(), now();</textarea></div>
+          <div class="editor-wrap"><div class="line-numbers" aria-hidden="true"></div><textarea id="sql-editor" spellcheck="false" aria-label="SQL query editor">SELECT current_database(), now();</textarea></div>
           <div class="editor-footer"><span id="query-message">Ready to query</span><button id="run-query" class="button run-button" disabled><span>▶</span> Run query</button></div>
         </section>
         <div id="workspace-splitter" class="workspace-splitter" role="separator" aria-orientation="horizontal" aria-label="Resize query and results panels" aria-valuemin="20" aria-valuemax="80" aria-valuenow="45" tabindex="0"></div>
