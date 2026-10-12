@@ -97,9 +97,14 @@ body {
 }
 
 .editor-wrap textarea {
-  min-height: 0;
+  min-height: 165px;
   height: 100%;
-  resize: none;
+  resize: vertical;
+}
+
+.editor-wrap .line-numbers {
+  flex: 0 0 45px;
+  align-self: stretch;
 }
 
 .workspace-splitter {

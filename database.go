@@ -525,38 +525,123 @@ func (s *DatabaseService) RunQuery(id, password, database, query string) (QueryR
 	}
 
 	started := time.Now()
-	rows, err := db.QueryContext(ctx, query)
-	if err != nil {
-		return QueryResult{}, fmt.Errorf("query failed: %w", err)
-	}
-	defer rows.Close()
-	columns, err := rows.Columns()
-	if err != nil {
-		return QueryResult{}, fmt.Errorf("read result columns: %w", err)
-	}
-	result := QueryResult{Columns: columns, Rows: make([][]any, 0), CommandTag: "query"}
-	for rows.Next() {
-		values := make([]any, len(columns))
-		destinations := make([]any, len(columns))
-		for i := range values {
-			destinations[i] = &values[i]
+	result := QueryResult{Rows: make([][]any, 0), CommandTag: "query"}
+	for _, statement := range splitSQLStatements(query) {
+		rows, err := db.QueryContext(ctx, statement)
+		if err != nil {
+			return QueryResult{}, fmt.Errorf("query failed: %w", err)
 		}
-		if err := rows.Scan(destinations...); err != nil {
+		columns, err := rows.Columns()
+		if err != nil {
+			rows.Close()
+			return QueryResult{}, fmt.Errorf("read result columns: %w", err)
+		}
+		result.Columns = columns
+		result.Rows = make([][]any, 0)
+		for rows.Next() {
+			values := make([]any, len(columns))
+			destinations := make([]any, len(columns))
+			for i := range values {
+				destinations[i] = &values[i]
+			}
+			if err := rows.Scan(destinations...); err != nil {
+				rows.Close()
+				return QueryResult{}, fmt.Errorf("read query result: %w", err)
+			}
+			for i, value := range values {
+				if bytes, ok := value.([]byte); ok {
+					values[i] = string(bytes)
+				}
+			}
+			result.Rows = append(result.Rows, values)
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
 			return QueryResult{}, fmt.Errorf("read query result: %w", err)
 		}
-		for i, value := range values {
-			if bytes, ok := value.([]byte); ok {
-				values[i] = string(bytes)
-			}
+		if err := rows.Close(); err != nil {
+			return QueryResult{}, fmt.Errorf("close query result: %w", err)
 		}
-		result.Rows = append(result.Rows, values)
-	}
-	if err := rows.Err(); err != nil {
-		return QueryResult{}, fmt.Errorf("read query result: %w", err)
 	}
 	result.RowCount = int64(len(result.Rows))
 	result.DurationMs = time.Since(started).Milliseconds()
 	return result, nil
+}
+
+// splitSQLStatements separates on semicolons outside strings, quoted identifiers,
+// comments, and PostgreSQL dollar-quoted strings.
+func splitSQLStatements(query string) []string {
+	var statements []string
+	start := 0
+	for i := 0; i < len(query); {
+		switch {
+		case i+1 < len(query) && query[i:i+2] == "--":
+			for i < len(query) && query[i] != '\n' {
+				i++
+			}
+		case i+1 < len(query) && query[i:i+2] == "/*":
+			i += 2
+			depth := 1
+			for i < len(query) && depth > 0 {
+				if i+1 < len(query) && query[i:i+2] == "/*" {
+					depth++
+					i += 2
+				} else if i+1 < len(query) && query[i:i+2] == "*/" {
+					depth--
+					i += 2
+				} else {
+					i++
+				}
+			}
+		case query[i] == '\'' || query[i] == '"' || query[i] == '`':
+			quote := query[i]
+			i++
+			for i < len(query) {
+				if query[i] == quote {
+					if i+1 < len(query) && query[i+1] == quote {
+						i += 2
+						continue
+					}
+					i++
+					break
+				}
+				if quote == '\'' && query[i] == '\\' && i+1 < len(query) {
+					i += 2
+				} else {
+					i++
+				}
+			}
+		case query[i] == '$':
+			delim := ""
+			for j := i + 1; j < len(query) && (query[j] == '_' || query[j] >= 'a' && query[j] <= 'z' || query[j] >= 'A' && query[j] <= 'Z' || query[j] >= '0' && query[j] <= '9'); j++ {
+				if query[j] == '$' {
+					delim = query[i : j+1]
+					break
+				}
+			}
+			if delim != "" {
+				if end := strings.Index(query[i+len(delim):], delim); end >= 0 {
+					i += len(delim) + end + len(delim)
+				} else {
+					i = len(query)
+				}
+			} else {
+				i++
+			}
+		case query[i] == ';':
+			if statement := strings.TrimSpace(query[start:i]); statement != "" {
+				statements = append(statements, statement)
+			}
+			i++
+			start = i
+		default:
+			i++
+		}
+	}
+	if statement := strings.TrimSpace(query[start:]); statement != "" {
+		statements = append(statements, statement)
+	}
+	return statements
 }
 
 func (s *DatabaseService) closeProfilePoolsLocked(id string) {
