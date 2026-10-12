@@ -4,6 +4,26 @@
 
 A Wails v3 desktop SQL client for CockroachDB, PostgreSQL, and Snowflake. It supports multiple saved connection profiles and a query workspace.
 
+## Install
+
+Install the Linux x86-64 AppImage into `~/.local/bin` and launch it:
+
+```sh
+mkdir -p "$HOME/.local/bin" && curl -fL "https://github.com/JoshuaSchlichting/seer-stone/releases/download/v0.0.1/linux-amd64.AppImage" -o "$HOME/.local/bin/seer-stone" && chmod +x "$HOME/.local/bin/seer-stone" && "$HOME/.local/bin/seer-stone"
+```
+
+The v0.0.1 macOS Apple Silicon release is a tarball containing the app executable. Install it into `~/.local/bin` and launch it:
+
+```zsh
+set -e; tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT; curl -fL 'https://github.com/JoshuaSchlichting/seer-stone/releases/download/v0.0.1/macos-arm64.tar.gz' -o "$tmp/app.tar.gz"; tar -xzf "$tmp/app.tar.gz" -C "$tmp"; mkdir -p "$HOME/.local/bin"; install -m 755 "$tmp/seer-stone" "$HOME/.local/bin/seer-stone"; "$HOME/.local/bin/seer-stone"
+```
+
+Install the Windows x86-64 app into your local Programs folder (PowerShell):
+
+```powershell
+$ErrorActionPreference = 'Stop'; $dir = Join-Path $env:LOCALAPPDATA 'Programs\SeerStone'; $zip = Join-Path $env:TEMP 'seer-stone.zip'; New-Item -ItemType Directory -Force $dir | Out-Null; Invoke-WebRequest 'https://github.com/JoshuaSchlichting/seer-stone/releases/download/v0.0.1/windows-amd64.zip' -OutFile $zip; Expand-Archive $zip -DestinationPath $dir -Force; Remove-Item $zip; & (Join-Path $dir 'seer-stone.exe')
+```
+
 ## Run
 
 Requires Go, Wails v3 CLI, and the platform prerequisites for Wails/webview builds.
