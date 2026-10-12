@@ -824,6 +824,9 @@ function closeQueryTab(id) {
 
 function showToast(message, isError = false) {
   toast.textContent = message;
+  const accent = connectionAccentValues[connectionColors[activeProfile()?.id]];
+  if (accent) toast.style.setProperty("--connection-accent", accent);
+  else toast.style.removeProperty("--connection-accent");
   toast.classList.toggle("error", isError);
   toast.classList.add("show");
   clearTimeout(showToast.timer);
@@ -1257,6 +1260,9 @@ function renderSchemaTree(message = "") {
         objectButton.addEventListener("contextmenu", (event) => {
           event.preventDefault();
           contextSchemaObject = { schema, object };
+          const accent = connectionAccentValues[connectionColors[activeProfile()?.id]];
+          if (accent) schemaObjectMenu.style.setProperty("--connection-accent", accent);
+          else schemaObjectMenu.style.removeProperty("--connection-accent");
           schemaObjectMenu.classList.remove("is-hidden");
           schemaObjectMenu.style.left = `${Math.min(event.clientX, innerWidth - schemaObjectMenu.offsetWidth - 8)}px`;
           schemaObjectMenu.style.top = `${Math.min(event.clientY, innerHeight - schemaObjectMenu.offsetHeight - 8)}px`;

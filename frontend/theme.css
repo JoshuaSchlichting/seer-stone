@@ -396,6 +396,25 @@ textarea:focus-visible {
   border-left-color: color-mix(in srgb, var(--connection-accent, #2c4446) 45%, #2c4446);
 }
 
+#schema-object-menu {
+  border-color: var(--connection-accent, var(--palette-border));
+  background: color-mix(in srgb, var(--connection-accent, var(--palette-sidebar)) 18%, var(--palette-sidebar));
+}
+
+#schema-object-menu button {
+  color: var(--palette-dark-ink);
+}
+
+#schema-object-menu button:hover,
+#schema-object-menu button:focus-visible {
+  background: var(--connection-accent, var(--palette-sidebar-raised));
+  color: #fff;
+}
+
+.toast:not(.error) {
+  background: var(--connection-accent, #193638);
+}
+
 .connection-item[style*="--connection-accent"] .connection-symbol {
   border-color: var(--connection-accent);
   color: var(--connection-accent);
