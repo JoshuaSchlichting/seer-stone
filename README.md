@@ -1,5 +1,7 @@
 # Seer Stone
 
+<p align="center"><img src="frontend/assets/seer-stone-logo.png" alt="Seer Stone logo" width="200"></p>
+
 A Wails v3 desktop SQL client for CockroachDB, PostgreSQL, and Snowflake. It supports multiple saved connection profiles and a query workspace.
 
 ## Run
