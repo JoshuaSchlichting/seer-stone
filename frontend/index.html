@@ -25,7 +25,7 @@
 <body>
   <div class="app-shell">
     <aside class="sidebar">
-      <button class="brand" id="home-link" type="button" aria-label="Show what's new"><img class="brand-mark" src="/assets/seer-stone-logo.png" alt=""><span><strong>seer stone</strong><small>SQL WORKSPACE</small></span></button>
+      <button class="brand" id="home-link" type="button" aria-label="Show workspace home"><img class="brand-mark" src="/assets/seer-stone-logo.png" alt=""><span><strong>seer stone</strong><small>SQL WORKSPACE</small></span></button>
       <div class="sidebar-label">WORKSPACE</div>
       <div class="connections-heading"><button id="toggle-connections" class="connections-toggle" type="button" aria-expanded="true" aria-controls="connection-section-body"><span class="connections-chevron" aria-hidden="true">▾</span><span>CONNECTIONS</span></button><button id="add-connection" class="icon-button" title="Add connection" aria-label="Add connection">＋</button></div>
       <div id="connection-section-body">
@@ -48,6 +48,7 @@
       </header>
 
       <section class="workspace is-startup">
+        <section id="welcome-state" class="welcome-state" aria-label="Workspace home"><div class="welcome-mark">⌘</div><p class="overline">SQL WORKSPACE</p><h1 id="welcome-title">Ready to query?</h1><p id="welcome-message">Add a database connection to get started.</p><button id="welcome-add-connection" class="button welcome-add-button" type="button">＋ Add connection</button><p id="welcome-select-hint" class="welcome-hint is-hidden">Or select a connection from the sidebar. You can connect when you’re ready.</p></section>
         <section class="editor-panel">
           <div class="panel-toolbar"><div id="query-tabs" class="query-tabs" role="tablist" aria-label="SQL query tabs"></div><button id="add-query-tab" class="new-query-tab" type="button" title="New query tab" aria-label="New query tab">＋</button><button id="open-pi-assistant" class="ask-pi-button" type="button" title="Open the in-app Pi panel. Its configured model receives this connection’s dialect and loaded schema names/columns; passwords and editor SQL are excluded.">Ask Pi</button><div id="editor-tools" class="editor-tools"><span>SQL</span><span class="tool-divider"></span><span>⌘ ↵ to run</span></div></div>
           <section id="pi-assistant-panel" class="pi-assistant-panel is-hidden" aria-label="Pi SQL assistant">
@@ -62,7 +63,6 @@
         <section class="results-section">
           <div class="results-heading"><div><p class="overline">OUTPUT</p><h2>Results</h2></div><div class="results-actions"><button id="copy-results-csv" class="button is-small result-action is-hidden" type="button">Copy CSV</button><button id="save-results-csv" class="button is-small result-action is-hidden" type="button">Save CSV</button><div id="result-meta" class="result-meta">Run a query to see results</div></div></div>
           <div id="result-state" class="result-placeholder"><div class="result-glyph">⌁</div><strong>Your results will appear here</strong><span>Choose a connection, enter its password, and run a SQL query.</span></div>
-          <section id="changelog" class="changelog-card" aria-label="What's new"><div class="changelog-heading"><div><p class="overline">WHAT'S NEW</p><h2>What’s new</h2></div></div><ol><li><a href="https://github.com/JoshuaSchlichting/seer-stone/commit/8b236b5" target="_blank" rel="noopener noreferrer"><code>8b236b5</code></a><span>Show Pi query results in the results panel</span></li><li><a href="https://github.com/JoshuaSchlichting/seer-stone/commit/bb5fbda" target="_blank" rel="noopener noreferrer"><code>bb5fbda</code></a><span>Ensure Pi activates the database tool before starting sessions</span></li><li><a href="https://github.com/JoshuaSchlichting/seer-stone/commit/d884833" target="_blank" rel="noopener noreferrer"><code>d884833</code></a><span>Fix schema object icon accent coloring</span></li><li><a href="https://github.com/JoshuaSchlichting/seer-stone/commit/faafbaf" target="_blank" rel="noopener noreferrer"><code>faafbaf</code></a><span>Add context menu for schema objects</span></li><li><a href="https://github.com/JoshuaSchlichting/seer-stone/commit/87f4bb3" target="_blank" rel="noopener noreferrer"><code>87f4bb3</code></a><span>Improve sidebar readability and connection color accents</span></li></ol></section>
           <div id="results-table-wrap" class="results-table-wrap is-hidden"></div>
         </section>
       </section>

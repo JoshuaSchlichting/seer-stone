@@ -149,6 +149,7 @@ paletteSelect.addEventListener("change", () => {
 });
 let profiles = [];
 let selectedId = "";
+let welcomeRequested = true;
 const connectionAccentValues = {
   red: "#ef5350",
   orange: "#fb8c00",
@@ -860,6 +861,12 @@ function updateEngineFields() {
 
 function renderProfiles() {
   list.replaceChildren();
+  const hasSelectedProfile = profiles.some((profile) => profile.id === selectedId);
+  workspaceElement.classList.toggle("is-startup", welcomeRequested || !hasSelectedProfile);
+  $("#welcome-title").textContent = profiles.length ? "Choose a connection" : "Ready to query?";
+  $("#welcome-message").textContent = profiles.length ? "Select a connection from the sidebar to open its SQL workspace." : "Add a database connection to get started.";
+  $("#welcome-add-connection").classList.toggle("is-hidden", profiles.length > 0);
+  $("#welcome-select-hint").classList.toggle("is-hidden", profiles.length === 0);
   $("#empty-connections").classList.toggle("is-hidden", profiles.length > 0);
   for (const profile of profiles) {
     const button = document.createElement("button");
@@ -926,7 +933,6 @@ function renderProfiles() {
     databaseSelect.append(option);
   }
   const isConnected = Boolean(profile && connectedIds.has(profile.id));
-  $("#changelog").classList.toggle("is-hidden", !workspaceElement.classList.contains("is-startup"));
   $("#connection-state-label").textContent = isConnected ? "Connected" : "Disconnected";
   $("#connection-state").classList.toggle("is-connected", isConnected);
   $("#connection-state-light").classList.toggle("connected", isConnected);
@@ -1370,7 +1376,11 @@ async function refreshProfiles() {
 }
 
 function selectConnection(id) {
-  if (selectedId === id && !workspaceElement.classList.contains("is-startup")) return;
+  welcomeRequested = false;
+  if (selectedId === id) {
+    workspaceElement.classList.remove("is-startup");
+    return;
+  }
   schemaData = [];
   expandedSchemas.clear();
   expandedObjects.clear();
@@ -1381,9 +1391,10 @@ function selectConnection(id) {
 }
 
 $("#home-link").addEventListener("click", () => {
+  welcomeRequested = true;
   workspaceElement.classList.add("is-startup");
-  $("#changelog").classList.remove("is-hidden");
 });
+$("#welcome-add-connection").addEventListener("click", () => $("#add-connection").click());
 
 list.addEventListener("click", (event) => {
   const item = event.target.closest(".connection-item");
