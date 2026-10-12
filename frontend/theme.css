@@ -1,20 +1,20 @@
 :root {
-  --palette-primary: #187c73;
-  --palette-hover: #11675f;
-  --palette-soft: #e4f4ee;
-  --palette-ink: #28806d;
-  --palette-border: #cfe2de;
-  --palette-dark-soft: #24413d;
-  --palette-dark-ink: #8fd0bd;
-  --palette-mark: #b7e6d7;
-  --palette-mark-ink: #174a48;
-  --palette-sidebar: #122528;
-  --palette-sidebar-raised: #20383b;
-  --palette-sidebar-action: #244043;
-  --palette-sidebar-action-hover: #32605e;
-  --palette-sidebar-border: #2c4143;
-  --palette-sidebar-field: #192f32;
-  --palette-sidebar-field-border: #2e4648;
+  --palette-primary: #2876c7;
+  --palette-hover: #1f5ea0;
+  --palette-soft: #e8f1fc;
+  --palette-ink: #316cae;
+  --palette-border: #d5e4f5;
+  --palette-dark-soft: #243952;
+  --palette-dark-ink: #9ac4f1;
+  --palette-mark: #c6e2ff;
+  --palette-mark-ink: #1d4f7e;
+  --palette-sidebar: #172332;
+  --palette-sidebar-raised: #223449;
+  --palette-sidebar-action: #273e59;
+  --palette-sidebar-action-hover: #355574;
+  --palette-sidebar-border: #314151;
+  --palette-sidebar-field: #1c2b3b;
+  --palette-sidebar-field-border: #35485d;
 }
 
 :root[data-palette="ocean"] {
@@ -436,4 +436,91 @@ textarea:focus-visible {
 .non-tabular-result,
 .security-note span {
   color: var(--palette-ink);
+}
+
+/* Keep the workspace surfaces and accents in sync with the selected palette. */
+:root {
+  --workspace: #f3f7fc;
+  --surface: #ffffff;
+  --surface-raised: #f7faff;
+}
+
+:root[data-theme="dark"] {
+  --workspace: #111a24;
+  --surface: #192532;
+  --surface-raised: #17222e;
+}
+
+.main-panel,
+.workspace {
+  background: var(--workspace);
+}
+
+.topbar,
+.session-bar,
+.editor-panel,
+.editor-wrap,
+.engine-badge,
+.changelog-card,
+.modal-card-head,
+.modal-card-body,
+.results-table-wrap {
+  background-color: var(--surface);
+}
+
+.panel-toolbar,
+.editor-footer,
+.results-table-wrap th,
+.result-placeholder {
+  background-color: var(--surface-raised);
+}
+
+.run-button,
+.save-button {
+  background-color: var(--palette-primary);
+}
+
+.brand {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.brand:hover strong {
+  color: #fff;
+}
+
+.brand-mark {
+  display: block;
+  flex: 0 0 34px;
+  object-fit: cover;
+}
+
+.changelog-card a {
+  color: var(--palette-ink);
+  text-decoration: none;
+}
+
+.changelog-card a:hover {
+  text-decoration: underline;
+}
+
+:root[data-theme="dark"] .topbar,
+:root[data-theme="dark"] .editor-panel,
+:root[data-theme="dark"] .editor-wrap,
+:root[data-theme="dark"] .results-table-wrap,
+:root[data-theme="dark"] .changelog-card,
+:root[data-theme="dark"] .modal-card-head,
+:root[data-theme="dark"] .modal-card-body {
+  background-color: var(--surface);
+}
+
+:root[data-theme="dark"] .panel-toolbar,
+:root[data-theme="dark"] .editor-footer,
+:root[data-theme="dark"] .results-table-wrap th,
+:root[data-theme="dark"] .result-placeholder {
+  background-color: var(--surface-raised);
 }

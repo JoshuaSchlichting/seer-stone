@@ -136,7 +136,7 @@ systemTheme.addEventListener("change", () => {
   if (themeSelect.value === "system") applyTheme("system");
 });
 const palettes = ["teal", "ocean", "violet", "ember", "rose", "forest"];
-let savedPalette = "teal";
+let savedPalette = "ocean";
 try {
   const storedPalette = localStorage.getItem("seer-stone-palette");
   if (palettes.includes(storedPalette)) savedPalette = storedPalette;
@@ -926,7 +926,7 @@ function renderProfiles() {
     databaseSelect.append(option);
   }
   const isConnected = Boolean(profile && connectedIds.has(profile.id));
-  $("#changelog").classList.toggle("is-hidden", Boolean(profile));
+  $("#changelog").classList.toggle("is-hidden", !workspaceElement.classList.contains("is-startup"));
   $("#connection-state-label").textContent = isConnected ? "Connected" : "Disconnected";
   $("#connection-state").classList.toggle("is-connected", isConnected);
   $("#connection-state-light").classList.toggle("connected", isConnected);
@@ -1370,7 +1370,7 @@ async function refreshProfiles() {
 }
 
 function selectConnection(id) {
-  if (selectedId === id) return;
+  if (selectedId === id && !workspaceElement.classList.contains("is-startup")) return;
   schemaData = [];
   expandedSchemas.clear();
   expandedObjects.clear();
@@ -1379,6 +1379,11 @@ function selectConnection(id) {
   renderProfiles();
   if (connectedIds.has(id)) refreshSchema();
 }
+
+$("#home-link").addEventListener("click", () => {
+  workspaceElement.classList.add("is-startup");
+  $("#changelog").classList.remove("is-hidden");
+});
 
 list.addEventListener("click", (event) => {
   const item = event.target.closest(".connection-item");

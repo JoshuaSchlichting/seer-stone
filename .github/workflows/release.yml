@@ -69,7 +69,7 @@ jobs:
         run: |
           mkdir -p dist
           test -x build/bin/seer-stone
-          rsvg-convert -w 256 -h 256 build/linux/seer-stone.svg -o build/linux/seer-stone.png
+          cp frontend/assets/seer-stone-logo.png build/linux/seer-stone.png
           desktop-file-validate build/linux/seer-stone.desktop
           wails3 generate appimage \
             -binary build/bin/seer-stone \
