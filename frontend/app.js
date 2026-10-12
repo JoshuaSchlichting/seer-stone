@@ -291,8 +291,8 @@ function loadQueryWorkspace(id, preserveScratch = false) {
 }
 
 function switchQueryWorkspace(id) {
-  if (selectedId === id) return;
   workspaceElement.classList.remove("is-startup");
+  if (selectedId === id) return;
   const preserveScratch = !selectedId;
   persistQueryWorkspace();
   selectedId = id;
