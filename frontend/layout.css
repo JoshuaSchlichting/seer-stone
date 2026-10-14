@@ -661,7 +661,7 @@ body {
 }
 
 .pi-assistant-status {
-  color: var(--palette-primary, #187c73);
+  color: var(--workspace-accent, var(--palette-primary, #187c73));
   font: 9px 'DM Mono', monospace;
 }
 
@@ -690,8 +690,8 @@ body {
 
 .pi-message.user {
   align-self: flex-end;
-  border-color: var(--palette-primary, #187c73);
-  background: var(--palette-primary, #187c73);
+  border-color: var(--workspace-accent, var(--palette-primary, #187c73));
+  background: var(--workspace-accent, var(--palette-primary, #187c73));
   color: #fff;
 }
 
@@ -746,7 +746,7 @@ body {
 .pi-message strong {
   display: block;
   margin-bottom: 4px;
-  color: var(--palette-primary, #187c73);
+  color: var(--workspace-accent, var(--palette-primary, #187c73));
   font: 9px 'DM Mono', monospace;
 }
 

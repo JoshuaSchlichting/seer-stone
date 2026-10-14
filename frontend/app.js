@@ -875,6 +875,10 @@ function renderProfiles() {
   }
   const profile = activeProfile();
   const workspaceAccent = connectionAccentValues[connectionColors[profile?.id]];
+  const activeName = $("#active-name");
+  if (workspaceAccent) activeName.style.setProperty("--connection-accent", workspaceAccent);
+  else activeName.style.removeProperty("--connection-accent");
+  activeName.classList.toggle("has-connection-accent", Boolean(workspaceAccent));
   const schemaBrowser = $(".schema-browser");
   if (workspaceAccent) schemaBrowser.style.setProperty("--connection-accent", workspaceAccent);
   else schemaBrowser.style.removeProperty("--connection-accent");
