@@ -18,6 +18,35 @@ body {
   overscroll-behavior-y: contain;
 }
 
+.app-shell.sidebar-collapsed .sidebar {
+  display: none;
+}
+
+.sidebar-toggle {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  margin-right: 14px;
+  padding: 0;
+  border: 1px solid var(--active-connection-accent, var(--palette-primary));
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--active-connection-accent, var(--palette-primary)) 12%, white);
+  color: var(--active-connection-accent, var(--palette-primary));
+  font-size: 29px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.topbar {
+  padding-left: 14px;
+}
+
+.sidebar-toggle:hover {
+  background: color-mix(in srgb, var(--active-connection-accent, var(--palette-primary)) 20%, white);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--active-connection-accent, var(--palette-primary)) 18%, transparent);
+}
+
 .connections-heading {
   gap: 6px;
 }

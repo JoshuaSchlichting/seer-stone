@@ -12,6 +12,22 @@ const toast = $("#toast");
 const themeSelect = $("#theme-select");
 const paletteSelect = $("#palette-select");
 const workspaceElement = $(".workspace");
+const sidebarToggle = $("#toggle-sidebar");
+let sidebarCollapsed = false;
+function setSidebarCollapsed(collapsed) {
+  sidebarCollapsed = collapsed;
+  document.querySelector(".app-shell").classList.toggle("sidebar-collapsed", collapsed);
+  sidebarToggle.setAttribute("aria-expanded", String(!collapsed));
+  sidebarToggle.textContent = collapsed ? "›" : "‹";
+}
+setSidebarCollapsed(false);
+sidebarToggle.addEventListener("click", () => setSidebarCollapsed(!sidebarCollapsed));
+document.addEventListener("keydown", (event) => {
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b" && !event.altKey) {
+    event.preventDefault();
+    setSidebarCollapsed(!sidebarCollapsed);
+  }
+});
 const queryPanel = $(".editor-panel");
 const workspaceSplitter = $("#workspace-splitter");
 const workspaceSplitStorageKey = "seer-stone-workspace-split";
