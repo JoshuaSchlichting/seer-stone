@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -25,6 +26,7 @@ import (
 
 type ConnectionProfile struct {
 	ID                    string `json:"id"`
+	ProjectDirectory      string `json:"projectDirectory,omitempty"`
 	Name                  string `json:"name"`
 	Engine                string `json:"engine"`
 	Host                  string `json:"host"`
@@ -141,6 +143,95 @@ func (s *DatabaseService) SaveCSVFile(contents string) error {
 	return os.WriteFile(path, []byte("\uFEFF"+contents), 0600)
 }
 
+func (s *DatabaseService) ProjectSQLFiles(profileID string) ([]string, error) {
+	profile, err := s.profile(profileID)
+	if err != nil {
+		return nil, err
+	}
+	if profile.ProjectDirectory == "" {
+		return []string{}, nil
+	}
+	files := make([]string, 0)
+	err = filepath.WalkDir(profile.ProjectDirectory, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			if path != profile.ProjectDirectory && (entry.Name() == ".git" || entry.Name() == "node_modules") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if strings.EqualFold(filepath.Ext(entry.Name()), ".sql") {
+			rel, e := filepath.Rel(profile.ProjectDirectory, path)
+			if e != nil {
+				return e
+			}
+			files = append(files, filepath.ToSlash(rel))
+		}
+		return nil
+	})
+	sort.Strings(files)
+	return files, err
+}
+
+func (s *DatabaseService) ReadProjectSQL(profileID, name string) (string, error) {
+	path, err := s.projectSQLPath(profileID, name)
+	if err != nil {
+		return "", err
+	}
+	data, err := os.ReadFile(path)
+	return string(data), err
+}
+
+func (s *DatabaseService) WriteProjectSQL(profileID, name, content string) error {
+	path, err := s.projectSQLPath(profileID, name)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, []byte(content), 0600)
+}
+
+func (s *DatabaseService) projectSQLPath(profileID, name string) (string, error) {
+	profile, err := s.profile(profileID)
+	if err != nil {
+		return "", err
+	}
+	if profile.ProjectDirectory == "" || filepath.Ext(name) != ".sql" || filepath.IsAbs(name) {
+		return "", errors.New("invalid SQL project file")
+	}
+	root, err := filepath.Abs(profile.ProjectDirectory)
+	if err != nil {
+		return "", err
+	}
+	path, err := filepath.Abs(filepath.Join(root, filepath.FromSlash(name)))
+	if err != nil {
+		return "", err
+	}
+	rel, err := filepath.Rel(root, path)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", errors.New("SQL file is outside the project folder")
+	}
+	return path, nil
+}
+
+func (s *DatabaseService) ChooseProjectDirectory(profileID string) (string, error) {
+	profile, err := s.profile(profileID)
+	if err != nil {
+		return "", err
+	}
+	result, err := application.Get().Dialog.OpenFile().CanChooseDirectories(true).CanChooseFiles(false).SetTitle("Choose project folder for " + profile.Name).SetDirectory(profile.ProjectDirectory).PromptForSingleSelection()
+	if err != nil {
+		return "", err
+	}
+	if result == "" {
+		return "", nil
+	}
+	profile.ProjectDirectory = result
+	_, err = s.SaveProfile(profile)
+	return result, err
+}
+
 func (s *DatabaseService) Profiles() []ConnectionProfile {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -183,6 +274,7 @@ func (s *DatabaseService) DeleteCredential(id string) error {
 
 func (s *DatabaseService) SaveProfile(profile ConnectionProfile) (ConnectionProfile, error) {
 	profile.Name = strings.TrimSpace(profile.Name)
+	profile.ProjectDirectory = strings.TrimSpace(profile.ProjectDirectory)
 	profile.Engine = strings.ToLower(strings.TrimSpace(profile.Engine))
 	if profile.Engine == "" {
 		profile.Engine = "cockroach"

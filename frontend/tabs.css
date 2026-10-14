@@ -24,6 +24,9 @@
   border-bottom-color: var(--workspace-accent, var(--palette-primary, #187c73));
 }
 
+.query-tab.missing-project-file .query-tab-select { color: #a6afb1; opacity: .62; }
+.query-tab.missing-project-file.active .query-tab-select { color: #778588; }
+
 .pi-query-tab .query-tab-select {
   max-width: 260px;
   color: var(--workspace-accent, var(--palette-primary, #187c73));

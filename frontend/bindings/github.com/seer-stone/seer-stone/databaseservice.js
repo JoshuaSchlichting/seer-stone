@@ -11,6 +11,14 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
+ * @param {string} profileID
+ * @returns {$CancellablePromise<string>}
+ */
+export function ChooseProjectDirectory(profileID) {
+    return $Call.ByID(1564034789, profileID);
+}
+
+/**
  * Close releases all cached database pools when the desktop application exits.
  * @returns {$CancellablePromise<void>}
  */
@@ -93,6 +101,15 @@ export function Profiles() {
         return $$createType6($result);
     }));
 }
+
+/** @param {string} profileID @returns {$CancellablePromise<string[]>} */
+export function ProjectSQLFiles(profileID) { return $Call.ByID(527053146, profileID); }
+
+/** @param {string} profileID @param {string} name @returns {$CancellablePromise<string>} */
+export function ReadProjectSQL(profileID, name) { return $Call.ByID(833333415, profileID, name); }
+
+/** @param {string} profileID @param {string} name @param {string} content @returns {$CancellablePromise<void>} */
+export function WriteProjectSQL(profileID, name, content) { return $Call.ByID(128321660, profileID, name, content); }
 
 /**
  * ResolvePiWriteApproval returns the user's one-time decision for a Pi write request.

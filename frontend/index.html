@@ -58,7 +58,7 @@
             <div id="pi-assistant-messages" class="pi-assistant-messages" role="log" aria-live="polite"><div class="pi-message assistant"><strong>Pi</strong><div>Describe the query you need. I have the selected database dialect and loaded schema context, but cannot access or execute against your database.</div></div></div>
             <form id="pi-assistant-form" class="pi-assistant-form"><textarea id="pi-assistant-prompt" rows="2" placeholder="Ask Pi to write or explain SQL…" aria-label="Message Pi"></textarea><button id="send-pi-prompt" class="button" type="submit">Send</button></form>
           </section>
-          <div class="editor-wrap"><div class="line-numbers" aria-hidden="true"></div><textarea id="sql-editor" spellcheck="false" aria-label="SQL query editor">SELECT current_database(), now();</textarea></div>
+          <div class="editor-wrap"><div id="project-file-tree" class="project-file-tree is-hidden"></div><div class="line-numbers" aria-hidden="true"></div><textarea id="sql-editor" spellcheck="false" aria-label="SQL query editor">SELECT current_database(), now();</textarea></div>
           <div class="editor-footer"><span id="query-message">Ready to query</span><button id="run-query" class="button run-button" disabled><span>▶</span> Run query</button></div>
         </section>
         <div id="workspace-splitter" class="workspace-splitter" role="separator" aria-orientation="horizontal" aria-label="Resize query and results panels" aria-valuemin="20" aria-valuemax="80" aria-valuenow="45" tabindex="0"></div>
@@ -115,7 +115,7 @@
       </section>
     </div>
   </div>
-  <div id="connection-context-menu" class="connection-context-menu is-hidden" role="menu"><button id="edit-connection" type="button" role="menuitem">Edit connection</button></div>
+  <div id="connection-context-menu" class="connection-context-menu is-hidden" role="menu"><button id="open-project-folder" type="button" role="menuitem">Open project folder…</button><button id="edit-connection" type="button" role="menuitem">Edit connection</button></div>
   <div id="schema-object-menu" class="connection-context-menu is-hidden" role="menu"><button type="button" role="menuitem" data-schema-action="preview">Preview top 50</button><button type="button" role="menuitem" data-schema-action="copy-name">Copy name</button><button type="button" role="menuitem" data-schema-action="copy-qualified">Copy schema + name</button></div>
   <div id="toast" class="toast" role="status"></div>
   <script type="module" src="/app.js"></script>

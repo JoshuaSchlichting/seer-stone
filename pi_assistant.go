@@ -125,6 +125,9 @@ func (s *DatabaseService) StartPiAssistant(context, profileID, password, databas
 		args = append(args, "--no-builtin-tools", "--extension", extensionPath)
 	}
 	cmd := exec.Command(piPath, args...)
+	if profile.ProjectDirectory != "" {
+		cmd.Dir = profile.ProjectDirectory
+	}
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		os.Remove(contextPath)

@@ -277,7 +277,7 @@ function persistQueryWorkspace(id = selectedId) {
   if (!id) return;
   saveActiveQuery();
   queryWorkspaceStore[id] = {
-    tabs: queryTabs.map(({ id: tabId, name, sql }) => ({ id: tabId, name, sql })),
+    tabs: queryTabs.map(({ id: tabId, name, sql, fileName, fileTree }) => ({ id: tabId, name, sql, fileName, fileTree })),
     activeTabId,
     activePanel: piPanelActive ? "pi" : "sql",
     nextTabId,
@@ -291,7 +291,9 @@ function loadQueryWorkspace(id, preserveScratch = false) {
     ? saved.tabs.filter((tab) => Number.isInteger(tab.id) && typeof tab.name === "string" && typeof tab.sql === "string")
     : [];
   if (restoredTabs.length) {
-    queryTabs = restoredTabs.map((tab) => ({ ...tab, result: null, status: "Ready to query" }));
+    queryTabs = restoredTabs.map((tab) => ({ ...tab, fileTree: tab.fileTree || tab.name === "Project files", result: null, status: "Ready to query" }));
+    const projectTree = queryTabs.find((tab) => tab.fileTree);
+    if (projectTree) queryTabs = queryTabs.filter((tab) => !tab.fileTree || tab.id === projectTree.id);
     activeTabId = queryTabs.some((tab) => tab.id === saved.activeTabId) ? saved.activeTabId : queryTabs[0].id;
     nextTabId = Math.max(Number(saved.nextTabId) || 1, ...queryTabs.map((tab) => tab.id + 1));
   } else if (preserveScratch) {
@@ -307,7 +309,10 @@ function loadQueryWorkspace(id, preserveScratch = false) {
   $(".editor-wrap").classList.toggle("is-hidden", piPanelActive);
   $(".editor-footer").classList.toggle("is-hidden", piPanelActive);
   $("#editor-tools").classList.toggle("is-hidden", piPanelActive);
-  $("#sql-editor").value = activeQueryTab().sql;
+  const currentTab = activeQueryTab();
+  $("#sql-editor").classList.toggle("is-hidden", Boolean(currentTab.fileTree));
+  $("#project-file-tree").classList.toggle("is-hidden", !currentTab.fileTree);
+  if (currentTab.fileTree) renderProjectFileTree(currentTab); else $("#sql-editor").value = currentTab.sql;
   renderQueryTabs();
   showTabOutput(activeQueryTab());
   persistQueryWorkspace(id);
@@ -338,6 +343,7 @@ function switchQueryWorkspace(id) {
 }
 
 function showTabOutput(tab) {
+  if (tab?.fileTree) return;
   if (piPanelActive) {
     const assistant = piAssistantSessions.get(activePiProfileId);
     const result = assistant?.activeResult || piTranscriptStore[activePiProfileId]?.activeResult;
@@ -368,7 +374,7 @@ function renderQueryTabs() {
   container.replaceChildren();
   for (const tab of queryTabs) {
     const item = document.createElement("div");
-    item.className = `query-tab${!piPanelActive && tab.id === activeTabId ? " active" : ""}`;
+    item.className = `query-tab${!piPanelActive && tab.id === activeTabId ? " active" : ""}${tab.missingFile ? " missing-project-file" : ""}`;
     item.setAttribute("role", "presentation");
     const select = document.createElement("button");
     select.type = "button";
@@ -377,7 +383,7 @@ function renderQueryTabs() {
     select.setAttribute("aria-selected", String(!piPanelActive && tab.id === activeTabId));
     select.setAttribute("aria-label", `${tab.name}; double-click or press F2 to rename`);
     select.title = "Double-click or press F2 to rename";
-    select.textContent = `▤ ${tab.name}`;
+    select.textContent = tab.fileTree ? `▦ ${tab.name}` : `▤ ${tab.name}`;
     select.addEventListener("click", () => activateQueryTab(tab.id));
     select.addEventListener("dblclick", () => {
       activateQueryTab(tab.id);
@@ -434,7 +440,9 @@ function activateQueryTab(id) {
     activeTabId = id;
   }
   const tab = activeQueryTab();
-  $("#sql-editor").value = tab.sql;
+  $("#sql-editor").classList.toggle("is-hidden", Boolean(tab.fileTree));
+  $("#project-file-tree").classList.toggle("is-hidden", !tab.fileTree);
+  if (tab.fileTree) renderProjectFileTree(tab); else $("#sql-editor").value = tab.sql;
   renderQueryTabs();
   $("#pi-assistant-panel").classList.add("is-hidden");
   $(".editor-wrap").classList.remove("is-hidden");
@@ -740,18 +748,21 @@ function startPiAssistantPolling() {
     try {
       for (const [profileId, assistant] of piAssistantSessions) {
         if (assistant.stopped) continue;
-        const events = await DatabaseService.PiAssistantEvents(assistant.sessionId);
-        for (const event of events) applyPiAssistantEvent(assistant, event);
-        if (events.length) persistPiTranscript(profileId, assistant);
-        if (events.length && profileId === activePiProfileId && piPanelActive) renderPiAssistant();
+        try {
+          const events = await DatabaseService.PiAssistantEvents(assistant.sessionId);
+          for (const event of events) applyPiAssistantEvent(assistant, event);
+          if (events.length) persistPiTranscript(profileId, assistant);
+          if (events.length && profileId === activePiProfileId && piPanelActive) renderPiAssistant();
+        } catch (error) {
+          assistant.busy = false;
+          assistant.stopped = true;
+          assistant.messages.push({ role: "error", text: "Pi session ended; reopen Pi to start a new session." });
+          persistPiTranscript(profileId, assistant);
+          if (profileId === activePiProfileId && piPanelActive) renderPiAssistant();
+        }
       }
     } catch (error) {
-      const assistant = piAssistantSessions.get(activePiProfileId);
-      if (assistant) {
-        assistant.busy = false;
-        assistant.messages.push({ role: "error", text: String(error) });
-        renderPiAssistant();
-      }
+      console.error("Pi assistant polling failed", error);
     } finally {
       piPolling = false;
     }
@@ -798,7 +809,31 @@ function renameQueryTab(id) {
   input.addEventListener("blur", () => finish(true));
 }
 
+function addProjectFileTreeTab() {
+  const existing = queryTabs.find((tab) => tab.fileTree);
+  if (existing) {
+    activateQueryTab(existing.id);
+    if (activeTabId === existing.id && !piPanelActive) {
+      $("#sql-editor").classList.add("is-hidden");
+      $("#project-file-tree").classList.remove("is-hidden");
+      renderProjectFileTree(existing);
+    }
+    return;
+  }
+  saveActiveQuery();
+  const tab = { id: nextTabId++, name: "Project files", sql: "", fileTree: true, result: null, status: "Project files" };
+  queryTabs.push(tab); activeTabId = tab.id; piPanelActive = false;
+  $("#sql-editor").classList.add("is-hidden"); $("#project-file-tree").classList.remove("is-hidden");
+  renderQueryTabs(); renderProjectFileTree(tab); persistQueryWorkspace();
+}
+
 function addQueryTab() {
+  if (activeProfile()?.projectDirectory) {
+    const choice = prompt("Add: 1) Query tab  2) Project files  3) New SQL file", "1");
+    if (choice === "2") { addProjectFileTreeTab(); return; }
+    if (choice === "3") { createProjectSQLFile(); return; }
+    if (choice !== "1") return;
+  }
   saveActiveQuery();
   piPanelActive = false;
   $("#pi-assistant-panel").classList.add("is-hidden");
@@ -871,6 +906,58 @@ function updateEngineFields() {
   $("#profile-port").value = engine === "postgres" ? "5432" : "26257";
 }
 
+let projectFileTreeRequest = 0;
+async function renderProjectFileTree(tab) {
+  const request = ++projectFileTreeRequest;
+  const panel = $("#project-file-tree"); panel.replaceChildren();
+  const profile = activeProfile();
+  if (!profile?.projectDirectory) { panel.textContent = "Choose a project folder from the connection menu first."; return; }
+  try {
+    const files = await DatabaseService.ProjectSQLFiles(profile.id);
+    if (request !== projectFileTreeRequest || activeProfile()?.id !== profile.id || !activeQueryTab()?.fileTree) return;
+    const available = new Set(files || []);
+    for (const queryTab of queryTabs) {
+      if (queryTab.fileName) queryTab.missingFile = !available.has(queryTab.fileName);
+    }
+    renderQueryTabs();
+    if (!files.length) { panel.textContent = "No .sql files in this project folder."; return; }
+    for (const file of files) {
+      const button = document.createElement("button"); button.type = "button"; button.className = "project-file"; button.textContent = `▤ ${file}`; button.title = file;
+      button.addEventListener("click", () => openProjectSQL(file)); panel.append(button);
+    }
+  } catch (error) {
+    console.error("Unable to list project SQL files", error);
+    panel.textContent = `Could not load project files: ${error?.message || String(error)}`;
+  }
+}
+
+async function createProjectSQLFile() {
+  const profile = activeProfile();
+  if (!profile?.projectDirectory) return;
+  let name = prompt("New SQL file name:");
+  if (!name) return;
+  name = name.trim();
+  if (!name.toLowerCase().endsWith(".sql")) name += ".sql";
+  try {
+    await DatabaseService.WriteProjectSQL(profile.id, name, "");
+    await openProjectSQL(name);
+  } catch (error) { showToast(error?.message || String(error), true); }
+}
+
+async function openProjectSQL(name) {
+  const existing = queryTabs.find(tab => tab.fileName === name);
+  if (existing) { activateQueryTab(existing.id); return; }
+  const profile = activeProfile(); if (!profile) return;
+  try {
+    saveActiveQuery();
+    const sql = await DatabaseService.ReadProjectSQL(profile.id, name);
+    const tab = { id: nextTabId++, name, fileName: name, sql, result: null, status: "Ready to query" };
+    queryTabs.push(tab); activeTabId = tab.id; piPanelActive = false;
+    $("#sql-editor").classList.remove("is-hidden"); $("#project-file-tree").classList.add("is-hidden");
+    $("#sql-editor").value = sql; renderQueryTabs(); showTabOutput(tab); persistQueryWorkspace();
+  } catch (error) { showToast(error?.message || String(error), true); }
+}
+
 function renderProfiles() {
   list.replaceChildren();
   const hasSelectedProfile = profiles.some((profile) => profile.id === selectedId);
@@ -885,7 +972,7 @@ function renderProfiles() {
     button.type = "button";
     button.className = `connection-item${profile.id === selectedId ? " selected" : ""}`;
     button.dataset.id = profile.id;
-    button.title = "Right-click to edit";
+    button.title = "Right-click for connection options";
     button.setAttribute("aria-haspopup", "menu");
     const engine = engineInfo(profile.engine);
     const accent = connectionAccentValues[connectionColors[profile.id]];
@@ -1451,6 +1538,20 @@ list.addEventListener("contextmenu", (event) => {
   connectionContextMenu.style.top = `${Math.max(4, Math.min(event.clientY, innerHeight - bounds.height - 4))}px`;
 });
 
+$("#open-project-folder").addEventListener("click", async () => {
+  const profileId = contextProfileId;
+  hideConnectionContextMenu();
+  try {
+    const directory = await DatabaseService.ChooseProjectDirectory(profileId);
+    if (directory) {
+      showToast(`Project folder set: ${directory}`);
+      profiles = await DatabaseService.Profiles(); renderProfiles();
+      if (selectedId !== profileId) selectConnection(profileId);
+      addProjectFileTreeTab();
+    }
+  } catch (error) { showToast(error?.message || String(error), true); }
+});
+
 $("#edit-connection").addEventListener("click", () => {
   const profile = profiles.find((item) => item.id === contextProfileId);
   if (profile) openModal(profile);
@@ -1686,9 +1787,19 @@ function updateSqlLineNumbers() {
   const lineCount = sqlEditor.value.split("\n").length;
   lineNumbers.innerHTML = Array.from({ length: lineCount }, (_, index) => index + 1).join("<br>");
 }
+let projectSaveTimer;
 sqlEditor.addEventListener("input", () => {
   updateSqlLineNumbers();
   persistQueryWorkspace();
+  const tab = activeQueryTab(), profile = activeProfile();
+  if (tab?.fileName && profile?.projectDirectory) {
+    clearTimeout(projectSaveTimer);
+    const content = sqlEditor.value, file = tab.fileName, profileId = profile.id;
+    projectSaveTimer = setTimeout(async () => {
+      try { await DatabaseService.WriteProjectSQL(profileId, file, content); tab.status = "Saved"; }
+      catch (error) { showToast(error?.message || String(error), true); }
+    }, 450);
+  }
 });
 updateSqlLineNumbers();
 $("#add-query-tab").addEventListener("click", addQueryTab);
