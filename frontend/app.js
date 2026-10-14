@@ -295,11 +295,24 @@ function switchQueryWorkspace(id) {
   workspaceElement.classList.remove("is-startup");
   if (selectedId === id) return;
   const preserveScratch = !selectedId;
+  const wasPiPanelActive = piPanelActive;
   persistQueryWorkspace();
   selectedId = id;
   piPanelActive = false;
   activePiProfileId = piAssistantSessions.has(id) || piTranscriptStore[id] ? id : "";
   loadQueryWorkspace(id, preserveScratch);
+  if (wasPiPanelActive) {
+    activePiProfileId = id;
+    piPanelActive = true;
+    persistQueryWorkspace(id);
+    renderQueryTabs();
+    $(".editor-wrap").classList.add("is-hidden");
+    $(".editor-footer").classList.add("is-hidden");
+    $("#editor-tools").classList.add("is-hidden");
+    $("#pi-assistant-panel").classList.remove("is-hidden");
+    if (piAssistantSessions.has(id)) renderPiAssistant();
+    else openPiAssistantTab();
+  }
 }
 
 function showTabOutput(tab) {
@@ -550,32 +563,6 @@ function renderPiAssistant() {
         text.textContent = message.text;
       }
       bubble.append(label, text);
-      if (message.result) {
-        const disclosure = document.createElement("button");
-        disclosure.type = "button";
-        disclosure.className = "pi-result-disclosure";
-        disclosure.setAttribute("aria-expanded", "false");
-        disclosure.textContent = `› ${message.result.rowCount} rows · ${message.result.columns.length} columns`;
-        const payload = document.createElement("pre");
-        payload.className = "pi-result-payload is-hidden";
-        payload.textContent = [message.result.columns.join("\t"), ...message.result.rows.map((row) => row.map((value) => value == null ? "NULL" : typeof value === "object" ? JSON.stringify(value) : String(value)).join("\t"))].join("\n");
-        disclosure.addEventListener("click", () => {
-          const expanded = disclosure.getAttribute("aria-expanded") === "true";
-          disclosure.setAttribute("aria-expanded", String(!expanded));
-          disclosure.textContent = `${expanded ? "›" : "⌄"} ${message.result.rowCount} rows · ${message.result.columns.length} columns`;
-          payload.classList.toggle("is-hidden", expanded);
-        });
-        bubble.append(disclosure, payload);
-        const view = document.createElement("button");
-        view.type = "button";
-        view.className = "button is-small";
-        view.textContent = "View in results window";
-        view.addEventListener("click", () => {
-          assistant.activeResult = message.result;
-          showTabOutput(activeQueryTab());
-        });
-        bubble.append(view);
-      }
     }
     container.append(bubble);
   }
