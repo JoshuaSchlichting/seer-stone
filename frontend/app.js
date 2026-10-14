@@ -73,7 +73,13 @@ function setConnectionsCollapsed(collapsed) {
   try { localStorage.setItem("seer-stone-connections-collapsed", String(collapsed)); } catch {}
 }
 setConnectionsCollapsed(connectionsCollapsed);
-toggleConnectionsButton.addEventListener("click", () => setConnectionsCollapsed(!connectionsCollapsed));
+toggleConnectionsButton.addEventListener("click", () => {
+  setConnectionsCollapsed(!connectionsCollapsed);
+  renderProfiles();
+});
+$("#collapsed-active-connection").addEventListener("click", () => {
+  if (activeProfile()) switchQueryWorkspace(activeProfile().id);
+});
 document.addEventListener("contextmenu", (event) => {
   if (event.defaultPrevented || event.target.closest('input, textarea, select, [contenteditable="true"], .results-table-wrap')) return;
   event.preventDefault();
@@ -874,6 +880,19 @@ function renderProfiles() {
     list.append(button);
   }
   const profile = activeProfile();
+  const collapsedSummary = $("#collapsed-active-connection");
+  collapsedSummary.hidden = !connectionsCollapsed || !profile;
+  collapsedSummary.replaceChildren();
+  if (profile) {
+    const engine = engineInfo(profile.engine);
+    const accent = connectionAccentValues[connectionColors[profile.id]];
+    if (accent) collapsedSummary.style.setProperty("--connection-accent", accent);
+    else collapsedSummary.style.removeProperty("--connection-accent");
+    collapsedSummary.innerHTML = `<span class="collapsed-connection-symbol">${engine.icon}</span><span class="collapsed-connection-copy"><strong></strong><small></small></span>`;
+    collapsedSummary.querySelector("strong").textContent = profile.name;
+    collapsedSummary.querySelector("small").textContent = selectedDatabase(profile) || engine.name;
+    collapsedSummary.title = `${profile.name} · ${selectedDatabase(profile) || engine.name}`;
+  }
   const workspaceAccent = connectionAccentValues[connectionColors[profile?.id]];
   const activeName = $("#active-name");
   if (workspaceAccent) activeName.style.setProperty("--connection-accent", workspaceAccent);

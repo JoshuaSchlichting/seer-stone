@@ -1,51 +1,37 @@
-/* Keep the sidebar compact while making its labels comfortable to scan. */
-.sidebar {
-  padding-top: 20px;
-}
-.brand {
-  padding-bottom: 24px;
-}
-.sidebar-label {
-  padding-bottom: 14px;
-  font-size: 11px;
-}
-.connections-heading {
-  padding-bottom: 7px;
-  font-size: 11px;
-}
-.connection-list {
-  gap: 3px;
-}
-.connection-item {
+/* A compact active-profile affordance stays visible when the list is folded. */
+.collapsed-active-connection {
+  display: flex;
+  align-items: center;
   gap: 9px;
-  padding: 7px 8px;
+  width: 100%;
+  margin: 0 0 8px;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--connection-accent, #527475) 55%, #2c4143);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--connection-accent, #244043) 15%, #122528);
+  color: #eaf1f0;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: inset 3px 0 var(--connection-accent, #527475), 0 0 12px color-mix(in srgb, var(--connection-accent, transparent) 25%, transparent);
 }
-.connection-symbol {
+.collapsed-active-connection[hidden] { display: none; }
+.collapsed-connection-symbol {
+  display: grid;
+  place-items: center;
   width: 27px;
   height: 27px;
+  flex: 0 0 27px;
+  border: 1px solid var(--connection-accent, #395456);
+  border-radius: 6px;
+  color: var(--connection-accent, #9fd8c9);
+  font: 10px 'DM Mono', monospace;
 }
-.connection-copy strong {
-  font-size: 13px;
+.collapsed-connection-copy { min-width: 0; }
+.collapsed-connection-copy strong, .collapsed-connection-copy small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.connection-copy small {
-  margin-top: 2px;
-  font-size: 11px;
-}
-.empty-connections {
-  padding: 8px;
-  font-size: 12px;
-}
-
-/* Schema browser text was scaled too far down for a persistent navigation panel. */
-.schema-heading { font-size: 11px; }
-.schema-toggle-all { font-size: 10px; }
-.schema-filter { font-size: 12px; }
-.schema-empty, .schema-status { font-size: 12px; }
-.schema-node-button, .schema-object-button { font-size: 12px; }
-.schema-chevron, .object-kind { font-size: 10px; }
-.schema-count { font-size: 10px; }
-.column-name { font-size: 11px; }
-.column-meta { font-size: 10px; }
-.schema-empty-filter { font-size: 11px; }
-.database-field.schema-database-field { gap: 8px; margin-bottom: 14px; font-size: 12px; }
-.schema-database-field select { height: 38px; font-size: 14px; }
+.collapsed-connection-copy strong { font-size: 12px; }
+.collapsed-connection-copy small { margin-top: 2px; color: #9aadae; font-size: 10px; }
