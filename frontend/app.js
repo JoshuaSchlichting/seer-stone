@@ -328,6 +328,10 @@ function switchQueryWorkspace(id) {
   piPanelActive = false;
   activePiProfileId = piAssistantSessions.has(id) || piTranscriptStore[id] ? id : "";
   loadQueryWorkspace(id, preserveScratch);
+  if (piPanelActive && !wasPiPanelActive) {
+    activePiProfileId = id;
+    openPiAssistantTab();
+  }
   if (wasPiPanelActive) {
     activePiProfileId = id;
     piPanelActive = true;
@@ -343,7 +347,6 @@ function switchQueryWorkspace(id) {
 }
 
 function showTabOutput(tab) {
-  if (tab?.fileTree) return;
   if (piPanelActive) {
     const assistant = piAssistantSessions.get(activePiProfileId);
     const result = assistant?.activeResult || piTranscriptStore[activePiProfileId]?.activeResult;
@@ -351,6 +354,7 @@ function showTabOutput(tab) {
     else clearResultOutput("Pi results will appear here");
     return;
   }
+  if (tab?.fileTree) return;
   if (tab.result) {
     renderResult(tab.result);
   } else {
@@ -437,6 +441,7 @@ function renderQueryTabs() {
 function activateQueryTab(id) {
   if (id === activeTabId && !piPanelActive) return;
   piPanelActive = false;
+  activePiProfileId = "";
   if (id !== activeTabId) {
     saveActiveQuery();
     activeTabId = id;
@@ -1832,7 +1837,11 @@ $("#pi-assistant-form").addEventListener("submit", async (event) => {
   const assistant = piAssistantSessions.get(activePiProfileId);
   const prompt = $("#pi-assistant-prompt");
   const message = prompt.value.trim();
-  if (!assistant || !message || assistant.busy || assistant.stopped) return;
+  if (!assistant) {
+    if (message) showToast("Pi is still starting. Please try again in a moment.", true);
+    return;
+  }
+  if (!message || assistant.busy || assistant.stopped) return;
   assistant.messages.push({ role: "user", text: message });
   persistPiTranscript(activePiProfileId, assistant);
   assistant.busy = true;
