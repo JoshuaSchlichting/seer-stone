@@ -911,7 +911,28 @@ async function renderProjectFileTree(tab) {
   const request = ++projectFileTreeRequest;
   const panel = $("#project-file-tree"); panel.replaceChildren();
   const profile = activeProfile();
-  if (!profile?.projectDirectory) { panel.textContent = "Choose a project folder from the connection menu first."; return; }
+  if (!profile) { panel.textContent = "Select a connection to open its project folder."; return; }
+  if (!profile.projectDirectory) {
+    const empty = document.createElement("div");
+    empty.className = "project-folder-empty";
+    empty.innerHTML = '<svg class="project-folder-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M5 12a3 3 0 0 1 3-3h12l4 5h16a3 3 0 0 1 3 3v19a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3V12Z"/><path d="M5 19h38"/></svg><strong>No project open</strong><span>Choose a folder to browse project SQL files.</span>';
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "button open-project-button";
+    button.textContent = "Open Project";
+    button.addEventListener("click", async () => {
+      try {
+        const directory = await DatabaseService.ChooseProjectDirectory(profile.id);
+        if (!directory) return;
+        profiles = await DatabaseService.Profiles();
+        renderProfiles();
+        renderProjectFileTree(tab);
+      } catch (error) { showToast(error?.message || String(error), true); }
+    });
+    empty.append(button);
+    panel.append(empty);
+    return;
+  }
   try {
     const files = await DatabaseService.ProjectSQLFiles(profile.id);
     if (request !== projectFileTreeRequest || activeProfile()?.id !== profile.id || !activeQueryTab()?.fileTree) return;

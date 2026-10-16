@@ -24,22 +24,22 @@ body {
 
 .sidebar-toggle {
   flex: 0 0 auto;
-  width: 38px;
-  height: 38px;
-  margin-right: 14px;
+  width: 30px;
+  height: 30px;
+  margin-right: 10px;
   padding: 0;
   border: 1px solid var(--active-connection-accent, var(--palette-primary));
   border-radius: 9px;
   background: color-mix(in srgb, var(--active-connection-accent, var(--palette-primary)) 12%, white);
   color: var(--active-connection-accent, var(--palette-primary));
-  font-size: 29px;
+  font-size: 23px;
   font-weight: 600;
   line-height: 1;
   cursor: pointer;
 }
 
 .topbar {
-  padding-left: 14px;
+  padding-left: 12px;
 }
 
 .sidebar-toggle:hover {
@@ -99,7 +99,8 @@ body {
 }
 
 .topbar {
-  flex: 0 0 61px;
+  flex: 0 0 48px;
+  padding-right: 20px;
 }
 
 .workspace {
@@ -879,4 +880,87 @@ body {
 
 .pi-assistant-form .button:hover:not(:disabled) {
   filter: brightness(.9);
+}
+
+/* Keep the connection header compact at desktop and narrow window sizes. */
+.topbar {
+  height: 40px !important;
+  min-height: 40px !important;
+  flex: 0 0 40px !important;
+  flex-wrap: nowrap;
+  align-items: center !important;
+  gap: 10px;
+  padding: 0 16px 0 10px;
+}
+
+.topbar-actions {
+  gap: 8px;
+}
+
+.sidebar-toggle {
+  width: 24px;
+  height: 24px;
+  margin-right: 0;
+  border-radius: 6px;
+  font-size: 19px;
+}
+
+.theme-control {
+  height: 24px;
+  gap: 5px;
+  font-size: 10px;
+  line-height: 24px;
+}
+
+.theme-control select {
+  height: 24px !important;
+  min-height: 24px;
+  padding: 0 22px 0 8px;
+  font-size: 10px;
+  line-height: 22px;
+}
+
+.theme-control .select {
+  height: 24px;
+}
+
+.breadcrumb {
+  align-self: center;
+  height: 24px;
+  align-items: center;
+  line-height: 24px;
+  transform: translateY(14px) !important;
+}
+
+.breadcrumb strong.has-connection-accent {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 11px;
+  line-height: 1;
+}
+
+.connection-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  font-size: 10px;
+}
+
+.connect-button {
+  height: 24px;
+  min-height: 24px;
+  padding: 0 10px;
+  font-size: 10px;
+}
+
+@media (max-width: 1100px) {
+  .topbar {
+    height: 40px !important;
+    min-height: 40px !important;
+    flex: 0 0 40px !important;
+    align-items: center !important;
+    padding: 0 16px 0 10px;
+  }
 }
