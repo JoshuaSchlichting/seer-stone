@@ -85,6 +85,8 @@ type DatabaseService struct {
 	localIDs               map[string]bool
 	localPiPermissionsFile string
 	localPiPermissions     map[string]localPiDatabasePermissions
+	localProjectDirsFile   string
+	localProjectDirs       map[string]string
 	pools                  map[string]databasePool
 	piMu                   sync.Mutex
 	piSessions             map[string]*piAssistantSession
@@ -109,6 +111,8 @@ func NewDatabaseService() (*DatabaseService, error) {
 		file:                   filepath.Join(dir, "connections.json"),
 		localPiPermissionsFile: filepath.Join(dir, "pi-permissions.json"),
 		localPiPermissions:     make(map[string]localPiDatabasePermissions),
+		localProjectDirsFile:   filepath.Join(dir, "project-directories.json"),
+		localProjectDirs:       make(map[string]string),
 		localPasswords:         make(map[string]string),
 		localIDs:               make(map[string]bool),
 		pools:                  make(map[string]databasePool),
@@ -130,6 +134,9 @@ func NewDatabaseService() (*DatabaseService, error) {
 		return nil, err
 	}
 	if err := service.loadLocalConnections("connections.local.json"); err != nil {
+		return nil, err
+	}
+	if err := service.loadLocalProjectDirectories(); err != nil {
 		return nil, err
 	}
 	return service, nil
@@ -228,6 +235,15 @@ func (s *DatabaseService) ChooseProjectDirectory(profileID string) (string, erro
 		return "", nil
 	}
 	profile.ProjectDirectory = result
+	s.mu.Lock()
+	if s.localIDs[profile.ID] {
+		s.localProjectDirs[profile.ID] = result
+		err = s.persistLocalProjectDirectoriesLocked()
+	}
+	s.mu.Unlock()
+	if err != nil {
+		return "", err
+	}
 	_, err = s.SaveProfile(profile)
 	return result, err
 }
@@ -857,6 +873,36 @@ func (s *DatabaseService) loadLocalConnections(path string) error {
 		s.profiles = append(s.profiles, profile)
 		s.localPasswords[id] = password
 		s.localIDs[id] = true
+	}
+	return nil
+}
+
+func (s *DatabaseService) loadLocalProjectDirectories() error {
+	data, err := os.ReadFile(s.localProjectDirsFile)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("read project directories: %w", err)
+	}
+	if err := json.Unmarshal(data, &s.localProjectDirs); err != nil {
+		return fmt.Errorf("parse project directories: %w", err)
+	}
+	for i := range s.profiles {
+		if directory, ok := s.localProjectDirs[s.profiles[i].ID]; ok && s.localIDs[s.profiles[i].ID] {
+			s.profiles[i].ProjectDirectory = directory
+		}
+	}
+	return nil
+}
+
+func (s *DatabaseService) persistLocalProjectDirectoriesLocked() error {
+	data, err := json.MarshalIndent(s.localProjectDirs, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode project directories: %w", err)
+	}
+	if err := os.WriteFile(s.localProjectDirsFile, data, 0600); err != nil {
+		return fmt.Errorf("save project directories: %w", err)
 	}
 	return nil
 }

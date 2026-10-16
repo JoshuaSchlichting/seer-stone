@@ -29,6 +29,7 @@ func TestLocalPiPermissionsPersistAcrossServiceRestart(t *testing.T) {
 	dir := t.TempDir()
 	localFile := filepath.Join(dir, "connections.local.json")
 	permissionsFile := filepath.Join(dir, "pi-permissions.json")
+	projectDirsFile := filepath.Join(dir, "project-directories.json")
 	connectionURI := "postgresql://tester:local-secret@localhost:26257/sample?sslmode=disable"
 	if err := os.WriteFile(localFile, []byte(`{"connections":[{"name":"Local DB","dbURI":"`+connectionURI+`"}]}`), 0600); err != nil {
 		t.Fatal(err)
@@ -39,6 +40,8 @@ func TestLocalPiPermissionsPersistAcrossServiceRestart(t *testing.T) {
 			file:                   filepath.Join(dir, "connections.json"),
 			localPiPermissionsFile: permissionsFile,
 			localPiPermissions:     make(map[string]localPiDatabasePermissions),
+			localProjectDirsFile:   projectDirsFile,
+			localProjectDirs:       make(map[string]string),
 			localPasswords:         make(map[string]string),
 			localIDs:               make(map[string]bool),
 			pools:                  make(map[string]databasePool),
@@ -47,6 +50,9 @@ func TestLocalPiPermissionsPersistAcrossServiceRestart(t *testing.T) {
 			t.Fatal(err)
 		}
 		if err := service.loadLocalConnections(localFile); err != nil {
+			t.Fatal(err)
+		}
+		if err := service.loadLocalProjectDirectories(); err != nil {
 			t.Fatal(err)
 		}
 		return service
@@ -59,11 +65,19 @@ func TestLocalPiPermissionsPersistAcrossServiceRestart(t *testing.T) {
 	if _, err := service.SaveProfile(profile); err != nil {
 		t.Fatal(err)
 	}
+	profile.ProjectDirectory = filepath.Join(dir, "project")
+	service.localProjectDirs[profile.ID] = profile.ProjectDirectory
+	if err := service.persistLocalProjectDirectoriesLocked(); err != nil {
+		t.Fatal(err)
+	}
 
 	restarted := newService()
 	loaded := restarted.Profiles()[0]
 	if !loaded.AllowPiDatabaseAccess || !loaded.AllowPiDatabaseWrite {
 		t.Fatalf("Pi permissions did not persist: access=%t write=%t", loaded.AllowPiDatabaseAccess, loaded.AllowPiDatabaseWrite)
+	}
+	if loaded.ProjectDirectory != filepath.Join(dir, "project") {
+		t.Fatalf("project directory did not persist: got %q", loaded.ProjectDirectory)
 	}
 	data, err := os.ReadFile(permissionsFile)
 	if err != nil {

@@ -330,6 +330,7 @@ function switchQueryWorkspace(id) {
   activePiProfileId = piAssistantSessions.has(id) || piTranscriptStore[id] ? id : "";
   $("#pi-assistant-prompt").value = piDrafts.get(id) || "";
   loadQueryWorkspace(id, preserveScratch);
+  if (activeProfile()?.projectDirectory) addProjectFileTreeTab();
   if (piPanelActive && !wasPiPanelActive) {
     activePiProfileId = id;
     openPiAssistantTab();
@@ -1061,6 +1062,8 @@ function renderProfiles() {
   passwordInput.disabled = !profile;
   if (profile) passwordInput.value = passwords.get(profile.id) || "";
   $("#connect-button").disabled = !profile;
+  $("#project-folder-button").disabled = !profile;
+  $("#project-folder-button").textContent = profile?.projectDirectory ? "Change project folder…" : "Choose project folder…";
   $("#run-query").disabled = !profile;
   $("#open-pi-assistant").disabled = !profile;
   $("#refresh-schema").disabled = !profile || !connectedIds.has(profile.id);
@@ -1573,8 +1576,7 @@ list.addEventListener("contextmenu", (event) => {
   connectionContextMenu.style.top = `${Math.max(4, Math.min(event.clientY, innerHeight - bounds.height - 4))}px`;
 });
 
-$("#open-project-folder").addEventListener("click", async () => {
-  const profileId = contextProfileId;
+async function chooseProjectFolder(profileId) {
   hideConnectionContextMenu();
   try {
     const directory = await DatabaseService.ChooseProjectDirectory(profileId);
@@ -1585,7 +1587,13 @@ $("#open-project-folder").addEventListener("click", async () => {
       addProjectFileTreeTab();
     }
   } catch (error) { showToast(error?.message || String(error), true); }
+}
+
+$("#project-folder-button").addEventListener("click", () => {
+  if (selectedId) chooseProjectFolder(selectedId);
 });
+
+$("#open-project-folder").addEventListener("click", () => chooseProjectFolder(contextProfileId));
 
 $("#edit-connection").addEventListener("click", () => {
   const profile = profiles.find((item) => item.id === contextProfileId);
