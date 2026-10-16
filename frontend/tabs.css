@@ -33,6 +33,12 @@
   font-weight: 600;
 }
 
+.pi-query-tab .pi-tab-symbol {
+  font-size: 16px;
+  font-weight: 700;
+  margin-right: 2px;
+}
+
 .query-tab-select,
 .query-tab-close,
 .new-query-tab {

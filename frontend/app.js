@@ -415,14 +415,16 @@ function renderQueryTabs() {
     const assistant = piAssistantSessions.get(activePiProfileId);
     const profile = profiles.find((entry) => entry.id === activePiProfileId);
     const database = assistant?.database || piTranscriptStore[activePiProfileId]?.database || "database not selected";
-    const label = `Pi | ${database}`;
     select.type = "button";
     select.className = "query-tab-select";
     select.setAttribute("role", "tab");
     select.setAttribute("aria-selected", String(piPanelActive));
     select.setAttribute("aria-label", `Pi for ${database}`);
     select.title = `Pi | ${database}`;
-    select.textContent = label;
+    const symbol = document.createElement("span");
+    symbol.className = "pi-tab-symbol";
+    symbol.textContent = "π";
+    select.append(symbol, document.createTextNode(` | ${database}`));
     select.addEventListener("click", () => {
       if (piAssistantSessions.has(activePiProfileId)) activatePiAssistantTab(activePiProfileId);
       else openPiAssistantTab();
