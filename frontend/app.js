@@ -253,6 +253,7 @@ let activeTabId = 1;
 let piPanelActive = false;
 let activePiProfileId = "";
 const piAssistantSessions = new Map();
+const piDrafts = new Map();
 let piPollTimer = null;
 let piPolling = false;
 let queryTabs = [{ id: 1, name: "query.sql", sql: $("#sql-editor").value, result: null, status: "Ready to query" }];
@@ -327,6 +328,7 @@ function switchQueryWorkspace(id) {
   selectedId = id;
   piPanelActive = false;
   activePiProfileId = piAssistantSessions.has(id) || piTranscriptStore[id] ? id : "";
+  $("#pi-assistant-prompt").value = piDrafts.get(id) || "";
   loadQueryWorkspace(id, preserveScratch);
   if (piPanelActive && !wasPiPanelActive) {
     activePiProfileId = id;
@@ -334,6 +336,7 @@ function switchQueryWorkspace(id) {
   }
   if (wasPiPanelActive) {
     activePiProfileId = id;
+    $("#pi-assistant-prompt").value = piDrafts.get(id) || "";
     piPanelActive = true;
     persistQueryWorkspace(id);
     renderQueryTabs();
@@ -535,9 +538,11 @@ async function openPiAssistantTab() {
       assistant = { sessionId, context, database, messages: Array.isArray(savedTranscript?.messages) ? savedTranscript.messages : [], activeResult: savedTranscript?.activeResult || null, busy: false, stopped: false, status: profile.allowPiDatabaseAccess ? "Starting database tool…" : "No database access" };
       piAssistantSessions.set(profile.id, assistant);
     }
-    activePiProfileId = profile.id;
     startPiAssistantPolling();
-    activatePiAssistantTab(profile.id);
+    if (selectedId === profile.id) {
+      activePiProfileId = profile.id;
+      activatePiAssistantTab(profile.id);
+    }
   } catch (error) {
     showToast(`Could not start the in-app Pi assistant: ${error}`, true);
   } finally {
@@ -549,6 +554,8 @@ function renderPiAssistant() {
   const profile = profiles.find((item) => item.id === activePiProfileId);
   const assistant = piAssistantSessions.get(activePiProfileId);
   if (!profile || !assistant) return;
+  const prompt = $("#pi-assistant-prompt");
+  if (document.activeElement !== prompt) prompt.value = piDrafts.get(activePiProfileId) || "";
   const engine = profile.engine || "cockroach";
   const dialect = ({ cockroach: "CockroachDB", postgres: "PostgreSQL", snowflake: "Snowflake" })[engine] || engine;
   const permissions = profile.allowPiDatabaseAccess ? (profile.allowPiDatabaseWrite ? "read/write" : "read-only") : "no DB access";
@@ -1843,6 +1850,7 @@ $("#pi-assistant-form").addEventListener("submit", async (event) => {
   }
   if (!message || assistant.busy || assistant.stopped) return;
   assistant.messages.push({ role: "user", text: message });
+  piDrafts.delete(activePiProfileId);
   persistPiTranscript(activePiProfileId, assistant);
   assistant.busy = true;
   assistant.status = "Thinking…";
@@ -1857,6 +1865,10 @@ $("#pi-assistant-form").addEventListener("submit", async (event) => {
     renderPiAssistant();
   }
 });
+$("#pi-assistant-prompt").addEventListener("input", (event) => {
+  if (activePiProfileId) piDrafts.set(activePiProfileId, event.currentTarget.value);
+});
+
 $("#pi-assistant-prompt").addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !event.shiftKey) {
     event.preventDefault();
